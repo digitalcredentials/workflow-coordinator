@@ -1,4 +1,4 @@
-# isomorphic-lib-template Changelog
+# exchange-coordinator Changelog
 
 ## 1.0.0 - TBD
 
