@@ -74,6 +74,9 @@ types/
 
 # dotenv environment variables file
 .env
+.signing-service.env
+.status-service.env
+.coordinator.env
 .env.test
 
 # parcel-bundler cache (https://parceljs.org/)
