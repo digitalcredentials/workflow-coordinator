@@ -1,18 +1,22 @@
 version: '3.5'
 services:
   coordinator:
-    image: digitalcredentials/issuer-coordinator
-   # build: .
+   # image: digitalcredentials/exchange-coordinator
+    build: .
    # env_file:
    #   - ./.coordinator.env
     ports:
       - "4005:4005"
-  signer:
-    image: digitalcredentials/signing-service
-   # build: ../../myrepos/signing-service-temp
+  signing:
+   # image: digitalcredentials/signing-service
+    build: ../signing-service
    # env_file:
    #   - ./.signing-service.env
   #status:
   #  build: ../status-service
+  #  env_file:
+  #    - ./.status-service.env
+  transactions:
+    build: ../transaction-manager-service
   #  env_file:
   #    - ./.status-service.env
