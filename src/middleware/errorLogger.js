@@ -1,4 +1,4 @@
-import axios, {isAxiosError} from 'axios';
+import {isAxiosError} from 'axios';
 import logger from "../utils/logger.js";
 
 const errorLogger = (error, request, response, next) => {
@@ -13,7 +13,6 @@ const errorLogger = (error, request, response, next) => {
         logEntry.serviceResponseError = error.response.data
         logEntry.serviceResponseStatus = error.response.status
         logEntry.serviceResponseHeaders = error.response.headers
-        logEntry.serviceRequest = error.request
     } else if (error.request) {
       logEntry.message = "One of the internal microservices didn't respond."
       logEntry.serviceRequest = error.request
@@ -23,14 +22,13 @@ const errorLogger = (error, request, response, next) => {
     }
   } else {
     // a non-axios error
-   // console.log(error)
+   console.log(error)
   }
   const errorLogMessage = `${error.statusCode} || ${response.statusMessage} - ${request.originalUrl} - ${request.method} - ${request.ip} - ${error.message}`
   
   // note that the logEntry here is what Winston calls a 'meta' object and it simply 
   // output to the log as provided, as JSON in this case.
   logger.error(errorLogMessage, logEntry)
-
   next(error) // done logging, so call next middleware that deals with errors
 }
 
