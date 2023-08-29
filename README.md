@@ -1,5 +1,7 @@
 # Digital Credentials Consortium exchange-coordinator
 
+[![Build status](https://img.shields.io/github/actions/workflow/status/digitalcredentials/exchange-coordinator/main.yml?branch=jc-update-tests)](https://github.com/digitalcredentials/signing-service/actions?query=workflow%3A%22Node.js+CI%22)
+
 A NodeJS Express server that coordinates micro-services within a Docker Compose Network to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW](https://lcw.app) using the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange) and either the [Credential Handler API (CHAPI)](https://chapi.io) or the custom DCC deeplink protocol to select a wallet.
 
 This is meant to be used within a larger system - that often already exists - and that handles authentication and storage/retrieval of the user data (needed for the credential), and simply passes that data to this system after authentication, at which point this system then largely handles the exchange with the wallet.

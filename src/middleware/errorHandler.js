@@ -12,7 +12,7 @@ function handleAxiosError(error) {
         errorResponse.serviceRequest = error.request
     } else {
         errorResponse.message = `Likely an error when setting up the request that prevented the request from being formulated: ${error.message}`
-        errorResponse.error = error
+       // errorResponse.error = error
     }
     return errorResponse
 }

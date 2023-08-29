@@ -2,13 +2,18 @@ import nock from 'nock';
 import { expect } from 'chai'
 import request from 'supertest';
 import crypto from 'crypto';
-import { getUnsignedVC, getUnsignedVCWithStatus, getDataForExchangeSetupPost } from './test-fixtures/vc.js';
-import unsignedNock from './test-fixtures/nocks/unprotected_sign.js'
+import { getDataForExchangeSetupPost } from './test-fixtures/vc.js';
+import directTestNocks from './test-fixtures/nocks/directTest.js'
+import unprotectedWalletQueryNock from './test-fixtures/nocks/unprotectedWalletQuery.js'
+import protectedWalletQueryNock from './test-fixtures/nocks/protectedWalletQuery.js';
+import unProtectedRandomWalletQuery from './test-fixtures/nocks/unProtectedRandomWalletQuery.js';
+import vprTestNocks from './test-fixtures/nocks/vprTest.js'
+
 import { getSignedDIDAuth } from './didAuth.js';
 
 import { build } from './app.js';
 
-const port = 4005
+const exchangeSetupPath = '/exchange/setup'
 const unprotectedTenantName = "UN_PROTECTED_TEST"
 const protectedTenantName = "PROTECTED_TEST"
 const randomTenantName = "RANDOM_TEST"
@@ -18,7 +23,16 @@ let randomToken
 
 let statusUpdateBody
 let app
-let server
+
+const noMatchHandler = req => {
+  if (req.path !== exchangeSetupPath) {
+    throw new Error(`Unexpected request was sent to ${req.host}${req.path}`)
+  }
+}
+
+const checkForUnexpectedCalls = () => {
+  nock.emitter.on('no match', noMatchHandler);
+}
 
 describe('api', () => {
 
@@ -35,20 +49,24 @@ describe('api', () => {
 
   beforeEach(async () => {
     app = await build();
-    // server = http.createServer(app).listen(port)
+    if (!nock.isActive()) nock.activate()
   });
 
   afterEach(async () => {
-    // server.close()
+    // we have to clean up nock after each test, otherwise it
+    // might disallow calls that it shouldn't or alternatively
+    // intercept calls it shouldn't
     nock.restore()
+    nock.emitter.removeListener('no match', noMatchHandler)
   });
 
   describe('GET /', () => {
     it('GET / => hello', done => {
-
+      
       nock('http://localhost:4006').get("/").reply(200, 'signing-service server status: ok.')
       nock('http://localhost:4008').get("/").reply(200, 'status-service server status: ok.')
-
+      nock('http://localhost:4004').get("/").reply(200, 'transaction-manager-service server status: ok.')
+      
       request(app)
         .get("/")
         .expect(200)
@@ -66,11 +84,11 @@ describe('api', () => {
     }, 10000);
   })
 
-  describe('POST /exchange/setup', () => {
+  describe(`POST ${exchangeSetupPath}`, () => {
 
     it('returns 400 if no body', done => {
       request(app)
-        .post("/exchange/setup")
+        .post(exchangeSetupPath)
         .set('Authorization', `Bearer ${protectedTenantToken}`)
         .expect('Content-Type', /json/)
         .expect(400, done)
@@ -78,66 +96,102 @@ describe('api', () => {
 
     it('returns 401 if tenant token is missing from auth header', done => {
       request(app)
-        .post("/exchange/setup")
+        .post(exchangeSetupPath)
         .send(getDataForExchangeSetupPost(protectedTenantName))
         .expect('Content-Type', /json/)
         .expect(401, done)
     })
 
     it('returns wallet query for UNPROTECTED tenant, without auth header', async () => {
-      nock.recorder.rec()
-      //walletQueryNock();
-
+     unprotectedWalletQueryNock();
       const response = await request(app)
-        .post("/exchange/setup")
+        .post(exchangeSetupPath)
         .send(getDataForExchangeSetupPost(unprotectedTenantName))
 
       expect(response.header["content-type"]).to.have.string("json");
       expect(response.status).to.eql(200);
       expect(response.body)
+    })
+
+    it('returns wallet query for PROTECTED tenant, with auth header', async () => {
+      protectedWalletQueryNock();
+      //nock.recorder.rec()
+      const response = await request(app)
+        .post(exchangeSetupPath)
+        .set('Authorization', `Bearer ${protectedTenantToken}`)
+        .send(getDataForExchangeSetupPost(protectedTenantName))
+
+      expect(response.header["content-type"]).to.have.string("json");
+      expect(response.status).to.eql(200);
+      expect(response.body)
+    })
+
+    it('returns wallet query for random UNPROTECTED tenant, with auth header', async () => {
+      unProtectedRandomWalletQuery()
+      const response = await request(app)
+        .post(exchangeSetupPath)
+        .set('Authorization', `Bearer ${randomToken}`)
+        .send(getDataForExchangeSetupPost(randomTenantName))
+
+      expect(response.header["content-type"]).to.have.string("json");
+      expect(response.status).to.eql(200);
+      expect(response.body)
+    })
+
+    it('returns 403 if token is not valid', async () => {
+
+      // no calls to the services should be made
+      checkForUnexpectedCalls(exchangeSetupPath)
+
+      const response = await request(app)
+        .post(exchangeSetupPath)
+        .set('Authorization', `Bearer badbadToken`)
+        .send(getDataForExchangeSetupPost(protectedTenantName))
+
+      expect(response.header["content-type"]).to.have.string("json");
+      expect(response.status).to.eql(403);
+      expect(response.body)
+
+    })
+
+    it('returns 403 when trying to use token for a different tenant', async () => {
+
+      // no calls to the services should be made
+      checkForUnexpectedCalls(exchangeSetupPath)
+
+      const response = await request(app)
+        .post(exchangeSetupPath)
+        .set('Authorization', `Bearer ${randomToken}`)
+        .send(getDataForExchangeSetupPost(protectedTenantName))
+
+      expect(response.header["content-type"]).to.have.string("json");
+      expect(response.status).to.eql(403);
+      expect(response.body)
 
 
     })
 
-    it('returns 403 if token is not valid', done => {
-      request(app)
-        .post("/instance/testing/credentials/issue")
-        .set('Authorization', `Bearer badToken`)
-        .send(getUnsignedVC())
-        .expect('Content-Type', /text/)
-        .expect(403, done)
-    })
+    it('returns 401 if token is not marked as Bearer', async () => {
+      
+      // no calls to the services should be made
+      checkForUnexpectedCalls(exchangeSetupPath)
 
-    it('returns 403 when trying to use token for a different tenant', done => {
-      request(app)
-        .post("/instance/testing/credentials/issue")
-        .set('Authorization', `Bearer ${testTenantToken2}`)
-        .send(getUnsignedVC())
-        .expect('Content-Type', /text/)
-        .expect(403, done)
-    })
+      const response = await request(app)
+        .post(exchangeSetupPath)
+        .set('Authorization', `${protectedTenantToken}`)
+        .send(getDataForExchangeSetupPost(protectedTenantName))
 
-    it('returns 401 if token is not marked as Bearer', done => {
-      request(app)
-        .post("/instance/testing/credentials/issue")
-        .set('Authorization', `${testTenantToken}`)
-        .send(getUnsignedVC())
-        .expect('Content-Type', /text/)
-        .expect(401, done)
+      expect(response.header["content-type"]).to.have.string("json");
+      expect(response.status).to.eql(401);
+      expect(response.body)
     })
+  })
 
-    it('returns 404 if no seed for tenant name', done => {
-      request(app)
-        .post("/instance/wrongTenantName/credentials/issue")
-        .set('Authorization', `${testTenantToken}`)
-        .send(getUnsignedVC())
-        .expect(404, done)
-        .expect('Content-Type', /text/)
-
-    })
+  describe('POST /exchange', () => {
 
     it('does the direct exchange', async () => {
-
+      
+      directTestNocks()
       /*
          A test that mocks both the wallet part of the interaction, and the 
          'issuer coordinator app' (i.e, the university specific code that uses the
@@ -189,15 +243,14 @@ describe('api', () => {
       expect(exchangeResponse.status).to.eql(200);
       expect(exchangeResponse.body)
 
-      console.log(exchangeResponse.body)
       const signedVC = exchangeResponse.body
       expect(signedVC.proof).to.exist
-
 
     });
 
 
-    it.only('does the vpr exchange', async () => {
+    it('does the vpr exchange', async () => {
+      vprTestNocks()
       /*
       A test that mocks both the wallet part of the interaction, and the 
       'issuer coordinator app' (i.e, the university specific code that uses the
@@ -237,7 +290,6 @@ describe('api', () => {
       expect(initiationResponse.body)
 
       const vpr = initiationResponse.body
-      console.log(vpr)
 
       // Step 3. mimics what the wallet does once it's got the VPR
       const challenge = vpr.verifiablePresentationRequest.challenge // the challenge that the exchange service generated
@@ -256,24 +308,14 @@ describe('api', () => {
       expect(continuationResponse.body)
 
       const signedVC = continuationResponse.body
-      console.log(signedVC)
+
       expect(signedVC.proof).to.exist
-      expect(signedVC.credentialSubject.id).to.equal(randomId)
-
-      //const signedVC = await callService(continuationURI, didAuth)
-      //return res.json(signedVC)
-
-
+      // uncomment this if you are using this test to run through
+      // an un-nocked scenario where you want to confirm the signing-service
+      // has used the random DID supplied in the DIDAuth
+      //expect(signedVC.credentialSubject.id).to.equal(randomId)
 
     })
-
-
-
-    it('invokes the signing service', async () => { })
-
-    it('invokes the status service', async () => { })
-
-
 
   })
 

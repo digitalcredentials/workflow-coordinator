@@ -15,13 +15,14 @@ const errorLogger = (error, request, response, next) => {
         logEntry.serviceResponseHeaders = error.response.headers
     } else if (error.request) {
       logEntry.message = "One of the internal microservices didn't respond."
-      logEntry.serviceRequest = error.request
+      //logEntry.serviceRequest = error.request
     } else {
       logEntry.message = `Likely an error when setting up a request to one of the internal microservices that prevented the request from being formulated: ${error.message}`
-      logEntry.error = error
+      //logEntry.error = error
     }
   } else {
     // a non-axios error
+    console.log("non axios error")
    console.log(error)
   }
   const errorLogMessage = `${error.statusCode} || ${response.statusMessage} - ${request.originalUrl} - ${request.method} - ${request.ip} - ${error.message}`
