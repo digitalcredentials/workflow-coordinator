@@ -1,10 +1,10 @@
 # Digital Credentials Consortium exchange-coordinator
 
-[![Build status](https://img.shields.io/github/actions/workflow/status/digitalcredentials/exchange-coordinator/main.yml?branch=jc-update-tests)](https://github.com/digitalcredentials/signing-service/actions?query=workflow%3A%22Node.js+CI%22)
+[![Build status](https://img.shields.io/github/actions/workflow/status/digitalcredentials/exchange-coordinator/main.yml?branch=main)](https://github.com/digitalcredentials/signing-service/actions?query=workflow%3A%22Node.js+CI%22)
 
-A NodeJS Express server that coordinates micro-services within a Docker Compose Network to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW](https://lcw.app) using the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange) and either the [Credential Handler API (CHAPI)](https://chapi.io) or the custom DCC deeplink protocol to select a wallet.
+A NodeJS Express server that coordinates micro-services within a Docker Compose Network to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app) using the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange) and either the [Credential Handler API (CHAPI)](https://chapi.io) or the custom DCC deeplink protocol to select a wallet.
 
-This is meant to be used within a larger system - that often already exists - and that handles authentication and storage/retrieval of the user data (needed for the credential), and simply passes that data to this system after authentication, at which point this system then largely handles the exchange with the wallet.
+This is meant to be used within a larger institutional system that already handles authentication and storage/retrieval of the user data (needed for the credential), and so simply passes that data to this system after authentication, at which point this system then largely handles the exchange with the wallet.
 
 ## Table of Contents
 
@@ -24,9 +24,9 @@ This is meant to be used within a larger system - that often already exists - an
   - [Protecting Tenant Endpoints](#protecting-tenant-endpoints)
   - [Revocation](#revocation)
 - [Usage](#usage)
+  - [Integration](#integration)
   - [Issuing](#issuing)
   - [Revoking](#revoking)
-  - [Architecture](#architecture)
 - [Development](#development)
   - [Testing](#testing)
 - [Contribute](#contribute)
@@ -34,7 +34,7 @@ This is meant to be used within a larger system - that often already exists - an
 
 ## Summary
 
-Use this server to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW](https://lcw.app). The credential can optionally be allocated a [revocation status](https://www.w3.org/TR/vc-status-list/) that can in turn later be used to revoke the credential.
+Use this server to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app). The credential can optionally be allocated a [revocation status](https://www.w3.org/TR/vc-status-list/) that can in turn later be used to revoke the credential.
 
 The issued credentials are `assigned` to a [Decentralized Identifier (DID)](https://www.w3.org/TR/did-core/) that the wallet (on behalf of the holder) provides to the issuer as part of the exchange. DIDs are effectively collections of cryptographic key pairs, which in this case later allow the holder to demonstrate that they control the credential by using a private key associated with their DID to sign challenges.
 
@@ -52,7 +52,7 @@ and optionally also:
 
 Note that all the calls to the internal services are only available within the Docker Compose network, and are not exposed externally.
 
-Typical use would be to run this in combination with something like nginx-proxy and acme-companion (for the automated creation, renewal and use of SSL certificates) using docker-compose.  You may also run your own apps within the same Docker Compose network. You might, for example, run a react app with a user interface from which the student can request the credential. [Usage - Integration] has a longer discussion about how to incorporate this system into your own institutional system.
+Typical use would be to run this in combination with something like nginx-proxy and acme-companion (for the automated creation, renewal and use of SSL certificates) using docker-compose.  You may also run your own apps within the same Docker Compose network. You might, for example, run a react app with a user interface from which the student can request the credential. [Usage - Integration](#integration) further discusses how to incorporate this system into your own institutional system.
 
 ## Wallet Exchange
 
@@ -104,15 +104,14 @@ The institution posts all the data needed to construct the credential, including
 ```
 The endpoint returns a json object that provides two options for selecting a wallet:
 
- * [CHAPI](#chapi)
+ * [CHAPI](#chapi)  (in development)
  * [custom DCC deeplink](#deeplink)
 
 It also returns a:
 
 * [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) 
 
-Which can be used for other flows, for example where the deeplink is known in advance (say when emailing out the deeplink to a student). In these cases, when the wallet invokes the deeplink you simply want to setup the exchange (and in particular generate the challenge) and then send the VPR 
-directly back to the wallet.
+Which can be used for other flows, for example where the deeplink is known in advance (say when emailing out the deeplink to a student). In these cases, when the wallet invokes the deeplink you simply want to setup the exchange (and in particular generate the challenge) and then send the VPR directly back to the wallet.
 
 The returned object looks like:
 
@@ -139,7 +138,7 @@ The returned object looks like:
             }]
         }
     }
-  }
+  
 }
 
 ```
@@ -185,11 +184,11 @@ From the terminal in the same directory that contains your docker-compose.yml fi
 
 Issue a test credential by opening this url in your web browser:
 
-[http://localhost:4005/demo](http://localhost:4005/demo)
+[http://localhost:4005/demo](http://localhost:4005/demo)  (coming soon!)
 
 This will take you through the exchange between a wallet and this issuer. The web page plays the part of the wallet (which is normally an app on your phone). 
 
-To instead actually issue to the [Learner Credential Wallet (LCW](https://lcw.app) running on your phone, you'll have to tell your phone where the issuer is running. You can do that by following these [instructions](https://dev.to/shaundai/using-localhost-for-mobile-development-1k4g) which tells you how to find the IP on which your laptop is running in your local network, and then open the following URL from a web browser on your laptop (replacing YOUR_IP with the IP you just determined):
+To instead actually issue to the [Learner Credential Wallet (LCW)](https://lcw.app) running on your phone, you'll have to tell your phone where the issuer is running. You can do that by following these [instructions](https://dev.to/shaundai/using-localhost-for-mobile-development-1k4g) which tells you how to find the IP on which your laptop is running in your local network, and then open the following URL from a web browser on your laptop (replacing YOUR_IP with the IP you just determined):
 
 `http://YOUR_IP:4005/lcw-demo`
 
@@ -379,7 +378,7 @@ The did:web implementation is likely where most implementations will end up, and
 
 ### Integration
 
-This is meant to be used within a larger system - that often already exists - and that handles things like authentication and storage/retrieval of the user data (needed for the credential), and simply passes that data to this system when the student requests the credential, at which point this system then largely handles the exchange with the wallet.
+This is meant to be used within a larger institutional system that already handles things like authentication and storage/retrieval of the user data (needed for the credential), and so simply passes that data to this system when the student requests the credential, at which point this system then largely handles the exchange with the wallet.
 
 There are many ways to incorporate this system into your own flows. A typical flow might go something like:
 
@@ -535,6 +534,19 @@ NOTE: you'll of course have to have [set up revocation](#enable-revocation) for 
 
 ## Development
 
+To run the exchange-coordinator locally from the cloned repository (rather than using docker compose to pull in docker hub images), you'll also have to clone the repository for the other services that this coordinator calls:
+
+* [signing-service](https://github.com/digitalcredentials/signing-service) 
+* [transaction-service](https://github.com/digitalcredentials/transaction-service)
+
+and optionally, if you are allocating a status position for revocation:
+
+* [status-service](https://github.com/digitalcredentials/signing-service)
+
+and have them all running locally at the same time.
+
+When running locally, the system picks up environment variables from the standard [.env](./.env) file, rather than from the env files that we recommend using with docker compose.
+
 ### Installation
 
 Clone code then cd into directory and:
@@ -548,11 +560,11 @@ If for whatever reason you need to run the server over https, you can set the `E
 
 ### Testing
 
-Testing uses supertest, jest, and nock to test the endpoints.  To run tests:
+Testing uses supertest, mocha, and nock to test the endpoints.  To run tests:
 
 ```npm run test```
 
-Because the revocation (status) system uses github to store status, calls are made out to github during issuance.  Rather than have to make these calls for every test, and possibly in cases where outgoing http calls aren't ideal, we've used [nock](https://github.com/nock/nock) to mock out the http calls to the github api, so that the actual calls needn't be made - nock instead returns our precanned replies.  Creating mocks can be time consuming, though, so we've also opted to use the recording feature of nock which allows us to run the tests in 'record' mode which will make the real calls out to Github, and record the results so they can be used for future calls.
+This coordinator coordinates http calls out to other services, but rather than have to make these calls for every test, and possibly in cases where outgoing http calls aren't ideal, we've used [nock](https://github.com/nock/nock) to mock out the http calls so that the actual calls needn't be made - nock instead returns our precanned replies.
 
 ## Contribute
 
