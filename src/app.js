@@ -53,7 +53,15 @@ export async function build(opts = {}) {
                 code: 500
             })
         }
-
+        try {
+            await axios.get(`http://${transactionServiceEndpoint}/`)
+        } catch (e) {
+            next({
+                message: 'transaction service is NOT running.',
+                error: e,
+                code: 500
+            })
+        }
         const message = enableStatusService ?
             "exchange-coordinator, status-service, transaction-service, and signing-service all ok."
             :
@@ -176,7 +184,7 @@ export async function build(opts = {}) {
                     unSignedVC
 
                 // sign the credential
-                const signedVC = await callService(`http://${signingServiceEndpoint}/instance/${tenantName}/credentials/sign`, vcReadyToSign)
+                const signedVC = await callService(`http://${signingServiceEndpoint}/instance/${tenantName.toLowerCase()}/credentials/sign`, vcReadyToSign)
                 return res.json(signedVC)
 
             } catch (error) {
