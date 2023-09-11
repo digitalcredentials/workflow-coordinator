@@ -79,12 +79,18 @@ export async function build(opts = {}) {
     phone.
     */
     app.get('/demo', async (req, res, next) => {
+        const retrievalId = 'ohmy'
         // 1. post the test vc to the /setup endpoint
-        const data = { vc: testVC, tenantName: "test" }
-        const walletQuery = await callService(`${exchangeHost}/exchange/setup`, data)
+        const data = {tenantName: "test", data: [{ vc: testVC, retrievalId: 'ohmy' }]}
+        const walletQuerys = await callService(`${exchangeHost}/exchange/setup`, data)
         // The exchange endpoint stores the data and returns a deeplink (with challenge)
         // to which the student can be redirected, and which will then open the wallet
-        const { url } = walletQuery.find(q => q.type === 'directDeepLink')
+        // NOTE: the setup endpoint accepts an array of credentials, where each
+        // credential is identified by a 'retrievalId'.
+        // In this case we've only posted one credential, but we still pull it
+        // out by the retrievalId (rather than [0]), just for fun.
+        const walletQuery = walletQuerys.find(q => q.retrievalId === 'ohmy')
+        const url = walletQuery.directDeepLink
 
         // 2. redirect to the deeplink
         // The rest should take care of itself
@@ -116,12 +122,11 @@ export async function build(opts = {}) {
 
                 await verifyAuthHeader(req.headers.authorization, exchangeData.tenantName)
 
-                const walletQuery = await callService(`http://${transactionServiceEndpoint}/exchange`, exchangeData)
+                const walletQuerys = await callService(`http://${transactionServiceEndpoint}/exchange`, exchangeData)
 
-                return res.json(walletQuery)
+                return res.json(walletQuerys)
 
             } catch (error) {
-                console.log(error)
                 // catch async errors and forward error handling
                 // middleware
                 next(error)
@@ -147,7 +152,6 @@ export async function build(opts = {}) {
             } catch (error) {
                 // catch async errors and forward error handling
                 // middleware
-                console.log(error)
                 next(error)
             }
         })
@@ -190,7 +194,6 @@ export async function build(opts = {}) {
             } catch (error) {
                 // catch async errors and forward error handling
                 // middleware
-                console.log(error)
                 next(error)
             }
         })
