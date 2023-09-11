@@ -54,7 +54,7 @@ describe('api', () => {
 
   afterEach(async () => {
     // we have to clean up nock after each test, otherwise it
-    // might disallow calls that it shouldn't or alternatively
+    // might disallow calls that it shouldn't; or alternatively
     // intercept calls it shouldn't
     nock.restore()
     nock.emitter.removeListener('no match', noMatchHandler)
@@ -103,7 +103,9 @@ describe('api', () => {
     })
 
     it('returns wallet query for UNPROTECTED tenant, without auth header', async () => {
-     unprotectedWalletQueryNock();
+      
+    unprotectedWalletQueryNock();
+
       const response = await request(app)
         .post(exchangeSetupPath)
         .send(getDataForExchangeSetupPost(unprotectedTenantName))
@@ -114,8 +116,8 @@ describe('api', () => {
     })
 
     it('returns wallet query for PROTECTED tenant, with auth header', async () => {
-      protectedWalletQueryNock();
-      //nock.recorder.rec()
+     protectedWalletQueryNock();
+      
       const response = await request(app)
         .post(exchangeSetupPath)
         .set('Authorization', `Bearer ${protectedTenantToken}`)
@@ -128,6 +130,7 @@ describe('api', () => {
 
     it('returns wallet query for random UNPROTECTED tenant, with auth header', async () => {
       unProtectedRandomWalletQuery()
+      //nock.recorder.rec()
       const response = await request(app)
         .post(exchangeSetupPath)
         .set('Authorization', `Bearer ${randomToken}`)
@@ -190,7 +193,7 @@ describe('api', () => {
   describe('POST /exchange', () => {
 
     it('does the direct exchange', async () => {
-      
+    
       directTestNocks()
       /*
          A test that mocks both the wallet part of the interaction, and the 
@@ -212,8 +215,9 @@ describe('api', () => {
       expect(response.status).to.eql(200);
       expect(response.body)
 
-      const walletQuery = response.body
-      const { url } = walletQuery.find(q => q.type === 'directDeepLink')
+      const walletQuerys = response.body
+      const walletQuery = walletQuerys.find(q => q.retrievalId === 'someId')
+      const url = walletQuery.directDeepLink
 
       // Step 2. Now that we've got the deeplink, we would redirect to it, which
       // would open the wallet. In this test, we're just assuming that this has already 
@@ -270,16 +274,18 @@ describe('api', () => {
       expect(setupResponse.status).to.eql(200);
       expect(setupResponse.body)
 
-      const walletQuery = setupResponse.body
+      const walletQuerys = setupResponse.body
 
       // The exchange endpoint stores the data and returns a deeplink (with challenge)
       // to which the student can be redirected, and which will then open the wallet
-      const { url } = walletQuery.find(q => q.type === 'vprDeepLink')
+      const walletQuery = walletQuerys.find(q => q.retrievalId === 'someId')
+      const url = walletQuery.vprDeepLink
 
       // Step 2. mimics what the wallet would do when opened by deeplink
       // which is to parse the deeplink and call the exchange initiation endpoint
       const parsedDeepLink = new URL(url)
       const inititationURI = parsedDeepLink.searchParams.get('vc_request_url');
+
       // strip out the host because we are using supertest
       const initiationURIPath = (new URL(inititationURI)).pathname
 

@@ -28,8 +28,11 @@ const getUnsignedVCWithStatus = () => {
 }
 
 const getDataForExchangeSetupPost = (tenantName) => {
-  const data = {vc: testVC, tenantName}
-  return data
+  const fakeData = {
+    tenantName,
+    data: [{vc: testVC, retrievalId: 'someId'}]
+  }
+  return fakeData
 }
 const ed25519_2020suiteContext = "https://w3id.org/security/suites/ed25519-2020/v1"
 const statusListContext = "https://w3id.org/vc/status-list/2021/v1"
