@@ -208,9 +208,10 @@ describe('api', () => {
       // The exchange endpoint stores the data and returns a deeplink (with challenge)
       // to which the student can be redirected, and which will then open the wallet
 
+      const exchangeSetupData = getDataForExchangeSetupPost(unprotectedTenantName)
       const response = await request(app)
         .post("/exchange/setup")
-        .send(getDataForExchangeSetupPost(unprotectedTenantName))
+        .send(exchangeSetupData)
       expect(response.header["content-type"]).to.have.string("json");
       expect(response.status).to.eql(200);
       expect(response.body)
