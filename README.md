@@ -34,9 +34,9 @@ This is meant to be used within a larger institutional system that already handl
 
 ## Summary
 
-Use this server to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app). The credential can optionally be allocated a [revocation status](https://www.w3.org/TR/vc-status-list/) that can in turn later be used to revoke the credential.
+Use this server to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app). Credentials can optionally be allocated a [revocation status](https://www.w3.org/TR/vc-status-list/) that can later be used to revoke the credential.
 
-The issued credentials are `assigned` to a [Decentralized Identifier (DID)](https://www.w3.org/TR/did-core/) that the wallet (on behalf of the holder) provides to the issuer as part of the exchange. DIDs are effectively collections of cryptographic key pairs, which in this case later allow the holder to demonstrate that they control the credential by using a private key associated with their DID to sign challenges.
+The issued credentials are _assigned_ to a [Decentralized Identifier (DID)](https://www.w3.org/TR/did-core/) that the wallet provides (on behalf of the holder) to the issuer as part of the exchange. DIDs are effectively collections of cryptographic key pairs, which in this case later allow the holder to later demonstrate that they control the credential by using a private key associated with their DID to sign challenges.
 
 ## Architecture
 
@@ -63,13 +63,13 @@ This issuer implements the [VC-API Exchange protocol](https://w3c-ccg.github.io/
 3. the wallet sends back the DID and proof (in a DIDAuth Verifiable Presentation)
 4. the issuer verifies the proof and replies with the requested credential, issued to the supplied DID
 
-NOTE: Issuing the credential to the holder's DID later allows the holder to prove that they 'control' the credential by using their DID to sign challenges from verifiers.
+NOTE: Issuing the credential to the holder's DID later allows the holder to prove that they _control_ the credential by using their DID to sign challenges from verifiers.
 
-NOTE: we also provide an option to skip the first two steps so that the wallet can immediately post the DIDAuth from the deeplink or chapi request. This provides backwards compatability with wallets that implemented this simpler flow (for example as part of JFF PlugFest 2).
+NOTE: we also provide an option to skip the first two steps so that the wallet can immediately post the DIDAuth after the deeplink opens it. This provides backwards compatability with wallets that implemented this simpler flow (for example as part of JFF PlugFest 2).
 
 NOTE: We further provide a convenience endpoint that is not part of the VC-API spec and that effectively allows the institution to delegate most handling to an exchange coordinator by giving the exchange coordinator everything it needs to manage the exchange without further help from the institution. This is not part of the VC-API spec and is only meant to make implementation easier for the institution. This endpoint is called by institutional software at the point after the student has been authenticated by the institutianl authentication system and the data for the credential has been retrieved from the institutional data store. 
 
- The flow looks like:
+The flow looks like:
 
 TODO: ADD DIAGRAM
 
@@ -85,63 +85,104 @@ Three implement the [VC-API](https://w3c-ccg.github.io/vc-api/) spec:
 
 And a fourth convenience endpoint that handles most of the exchange on behalf of the institution:
 
- * POST /instance/{instanceID}
+ * POST /exchange/setup
 
-The 'instanceID' declares which signing DID should be used to sign the resulting credential (NOTE: this could instead go in the posted data.)
-
-The institution posts all the data needed to construct the credential, including subject data, credential 'type' (e.g., bachelors of science, masters of public policy, etc.) as a json object with the following structure:
+With this endpoint the institution posts a list of the unsigned verifiable credentials for which it wants deeplinks or a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) that can be used with the [Credential Handler API (CHAPI)](https://chapi.io). The posted object should have the following structure:
 
 ```
 {
-    "callback":"http://someurl",
-    "data":"data to later be used to build a Verifiable Credential using a template",
-    "vc":"alterntively can supply the populated, unsigned, Verifiable Credential",
-    "batchID": "defines the 'type' of the credential like which template to use",
-    "tenant": "specifies which signing DID to use",
-    "auth": "token which authorizes use of the specified signing DID",
-    "flow": "direct/vpr"
+	"tenantName": "someTenantName",
+	"data": [
+		{"vc": someVCGoesHere, "retrievalId": anIdWithWhichToIdentifyThisVCInTheResult},
+		{"vc": anotherVCGoesHere, "retrievalId": aDifferentRetrievalId},
+		... however many more vcs you want to post
+	]
 }
 ```
-The endpoint returns a json object that provides two options for selecting a wallet:
 
- * [CHAPI](#chapi)  (in development)
- * [custom DCC deeplink](#deeplink)
+If the tenant is protected with a token, then the token must be submitted in the authorization header as a bearer token. See the [Tenants](#add-tenants) section.
 
-It also returns a:
+For example, to post the data for a single credential to an unprotected tenant:
 
-* [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) 
-
-Which can be used for other flows, for example where the deeplink is known in advance (say when emailing out the deeplink to a student). In these cases, when the wallet invokes the deeplink you simply want to setup the exchange (and in particular generate the challenge) and then send the VPR directly back to the wallet.
-
-The returned object looks like:
-
-```
+```json
 {
-    walletQuery: [
-        {
-            type: "deeplink",
-            url: "dccrequest://request?vc_request_url=/exchanges/instances/CS_Dept/exchanges/<random token TX Mgr uses to store batch id, user id & user data>/"
-        },
-        {
-            type: "chapi"
-            query: { <query goes here, see below> }
-        }
-    ],
-    verifiablePresentationRequest: {
-        "query": [{ "type": "DIDAuthentication" }],
-        "challenge": SOME_CHALLENGE,
-        "domain": THE_DOMAIN_FOR_THE_EXCHANGE,
-        "interact": {
-            "service": [{
-            "type": "UnmediatedPresentationService2021",
-            "serviceEndpoint": CONTINUTATION_ENDPOINT, I.E., exchangeHost/exchange/exchangeId/transactionId
-            }]
-        }
-    }
-  
+	"tenantName": "UN_PROTECTED_TEST",
+	"data": [{
+		"vc": {
+			"@context": ["https://www.w3.org/2018/credentials/v1", "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json", "https://w3id.org/vc/status-list/2021/v1"],
+			"id": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1",
+			"type": ["VerifiableCredential", "OpenBadgeCredential"],
+			"issuer": {
+				"id": "did:key:z6MkhVTX9BF3NGYX6cc7jWpbNnR7cAjH8LUffabZP8Qu4ysC",
+				"type": "Profile",
+				"name": "University of Wonderful",
+				"description": "The most wonderful university",
+				"url": "https://wonderful.edu/",
+				"image": {
+					"id": "https://user-images.githubusercontent.com/947005/133544904-29d6139d-2e7b-4fe2-b6e9-7d1022bb6a45.png",
+					"type": "Image"
+				}
+			},
+			"issuanceDate": "2020-01-01T00:00:00Z",
+			"name": "A Simply Wonderful Course",
+			"credentialSubject": {
+				"type": "AchievementSubject",
+				"achievement": {
+					"id": "http://wonderful.wonderful",
+					"type": "Achievement",
+					"criteria": {
+						"narrative": "Completion of the Wonderful Course - well done you!"
+					},
+					"description": "Wonderful.",
+					"name": "Introduction to Wonderfullness"
+				}
+			}
+		},
+		"retrievalId": "someId"
+	}]
 }
+```
+
+
+The endpoint returns a json object that provides three options for selecting a wallet:
+
+ * [a _direct_ custom DCC deeplink](#deeplink)
+ * [a _vpr_ custom DCC deeplink](#deeplink)
+ * a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) 
+
+And example of the returned object:
+
+```json
+[{
+	"retrievalId": "someId",
+	"directDeepLink": "https://lcw.app/request.html?issuer=issuer.example.com&auth_type=bearer&challenge=9374011d-2b48-4416-a7a8-ea7a50b155a8&vc_request_url=http://localhost:4005/exchange/8c6f8343-e82b-48a2-b81e-3c9e0d596238/9374011d-2b48-4416-a7a8-ea7a50b155a8",
+	"vprDeepLink": "https://lcw.app/request.html?issuer=issuer.example.com&auth_type=bearer&vc_request_url=http://localhost:4005/exchange/8c6f8343-e82b-48a2-b81e-3c9e0d596238",
+	"chapiVPR": {
+		"query": {
+			"type": "DIDAuthentication"
+		},
+		"interact": {
+			"service": [{
+				"type": "VerifiableCredentialApiExchangeService",
+				"serviceEndpoint": "http://localhost:4005/exchange/8c6f8343-e82b-48a2-b81e-3c9e0d596238/9374011d-2b48-4416-a7a8-ea7a50b155a8"
+			}, {
+				"type": "CredentialHandlerService"
+			}]
+		},
+		"challenge": "9374011d-2b48-4416-a7a8-ea7a50b155a8",
+		"domain": "http://localhost:4005"
+	}
+}]
 
 ```
+
+The **retrievalId** is used to identify the result for each credential when more than one credential has been posted in the same post. The issuer supplies these retrievalIds when posting the data.
+
+The **directDeepLink** will open the [Learner Credential Wallet](https://lcw.app) after which the wallet invokes the **vc_request_url** that is passed as a query parameter on the deeplink, and gets the signed VC back immediately.
+
+The **vprDeepLink** will open the [Learner Credential Wallet](https://lcw.app) after which the wallet similarly invokes the **vc_request_url** but in this case the result of that call is a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/)  request for a DIDAuth. So this is a two step exchange whereas the directDeepLink is a one step exchange. **IMPORTANT NOTE**: this flow has not yet been implemented in the [Learner Credential Wallet](https://lcw.app).
+
+The **chapiVPR** is a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/)  that is meant to be used with a [Credential Handler API (CHAPI)](https://chapi.io) _get_ call to pass the [VPR](https://w3c-ccg.github.io/vp-request-spec/)  into a wallet which will then make a call to the exchange endpoint to get back the signed verifiable credential. **IMPORTANT NOTE**: this flow has not yet been implemented in the [Learner Credential Wallet](https://lcw.app).
 
 The institutional software then offers the student the appropriate option. For an example of how this would work look at the GET /demo endpoint which demonstrates with a working example how an institution would use the exchange-coordinator.
 
@@ -199,7 +240,6 @@ NEXT STEP: you'll soon want to issue your own credential, signed with your own k
 NOTE: Revocation is not enabled in the Quick Start. You've got to setup a couple of things to [ENABLE REVOCATION](#create-github-repositories), but you'll probably first want to configure the other parts of the application, make sure they work, and then enanble revocation. So let's get setup...
 
 ## Configuration 
-
 
 There are a few things you'll want to configure, in particular setting your own signing keys (so that only you can sign your credentials). Other options include enabling revocation, or allowing for 'multi-tenant' signing, which you might use, for example, to sign credentials for different courses with a different key.
 
@@ -280,7 +320,7 @@ and replace the 'generate' value for the TENANT_SEED_DEFAULT with your new seed 
 
 Once your key is set, you can test it as described in [Usage](usage).
 
-Note that this sets a key for the default tenant, but you can set up as many tenants as you like as explained in the [Add Tenants](#tenants) section. 
+Note that this sets a key for the default tenant, but you can set up as many tenants as you like as explained in the [Add Tenants](#add-tenants) section. 
 
 ### Add Tenants
 
@@ -387,118 +427,6 @@ There are many ways to incorporate this system into your own flows. A typical fl
 * After authentication, the student  TODO: continue on here
 
 TODO: DESCRIBE other POSSIBLE CONFIGURATIONS
-
-### Issuing
-
-#### Managed endpoint
-
-There are a few ways to use this when it comes time to issue your own credentials, but the easiest is to use our 'managed' endpoint, where we coordinate the different calls to the VC-API endpoints for you:
-
-`POST /exchange/setup`
-
-You simply post up an object like the following which will trigger the exchange with the wallet. You'd typically call that endpoint when the holder (student) clicks a button on your web page (which the student should have opened while on their phone) to get the credential. That button click might then call your server-side code which gets the data for the credential from your data store and then you post.
-
-You can now try issuing a cryptographically signed credential to the [Learner Credential Wallet (LCW](https://lcw.app).  Try it out with this CURL command, which you simply paste into the terminal:
-
-```
-curl --location 'http://localhost:3000/instance/test/credentials/issue' \
---header 'Content-Type: application/json' \
---data-raw '{ 
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"
-  ],
-  "id": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1", 
-  "type": [
-    "VerifiableCredential",
-    "OpenBadgeCredential"
-  ],
-  "issuer": {
-    "id": "the issuer code will set this as the issuing DID", 
-    "type": "Profile",
-    "name": "DCC Test Issuer",
-    "description": "A test DID used to issue test credentials",
-    "url": "https://digitalcredentials.mit.edu",
-    "image": {
-	    "id": "https://certificates.cs50.io/static/success.jpg",
-	    "type": "Image"
-	  }	
-  },
-  "issuanceDate": "2020-01-01T00:00:00Z", 
-  "expirationDate": "2025-01-01T00:00:00Z",
-  "name": "Successful Installation",
-  "credentialSubject": {
-      "type": "AchievementSubject",
-     "name": "Me!",
-     "achievement": {
-      	"id": "http://digitalcredentials.mit.edu",
-      	"type": "Achievement",
-      	"criteria": {
-        	"narrative": "Successfully installed the DCC issuer."
-      	},
-      	"description": "DCC congratulates you on your successful installation of the DCC Issuer.", 
-      	"name": "Successful Installation",
-      	"image": {
-	    	"id": "https://certificates.cs50.io/static/success.jpg",
-	    	"type": "Image"
-	  	}
-      }
-  	}
-}'
-```
-
-This should return a fully formed and signed credential printed to the terminal, that should look something like the following ( it will be all smushed up, but you can format it in something like [json lint](https://jsonlint.com)):
-
-
-```
-{
-	"@context": ["https://www.w3.org/2018/credentials/v1", "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json", "https://w3id.org/vc/status-list/2021/v1", "https://w3id.org/security/suites/ed25519-2020/v1"],
-	"id": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1",
-	"type": ["VerifiableCredential", "OpenBadgeCredential"],
-	"issuer": {
-		"id": "did:key:z6Mkf2rgv7ef8FmLJ5Py87LMa7nofQgv6AstdkgsXiiCUJEy",
-		"type": "Profile",
-		"name": "DCC Test Issuer",
-		"description": "A test DID used to issue test credentials",
-		"url": "https://digitalcredentials.mit.edu",
-		"image": {
-			"id": "https://certificates.cs50.io/static/success.jpg",
-			"type": "Image"
-		}
-	},
-	"issuanceDate": "2020-01-01T00:00:00Z",
-	"expirationDate": "2025-01-01T00:00:00Z",
-	"name": "Successful Installation",
-	"credentialSubject": {
-		"type": "AchievementSubject",
-		"name": "Me!",
-		"achievement": {
-			"id": "http://digitalcredentials.mit.edu",
-			"type": "Achievement",
-			"criteria": {
-				"narrative": "Successfully installed the DCC issuer."
-			},
-			"description": "DCC congratulates you on your successful installation of the DCC Issuer.",
-			"name": "Successful Installation",
-			"image": {
-				"id": "https://certificates.cs50.io/static/success.jpg",
-				"type": "Image"
-			}
-		}
-	},
-	"proof": {
-		"type": "Ed25519Signature2020",
-		"created": "2023-05-19T14:47:25Z",
-		"verificationMethod": "did:key:z6Mkf2rgv7ef8FmLJ5Py87LMa7nofQgv6AstdkgsXiiCUJEy#z6Mkf2rgv7ef8FmLJ5Py87LMa7nofQgv6AstdkgsXiiCUJEy",
-		"proofPurpose": "assertionMethod",
-		"proofValue": "zviQazCEMihts4e6BrhxkEu5VbCPFqTFLY5qBkiRztf3eq1vXYXUCQrTL6ohxmMrsAPEJpB9WGbN1NH5DsSDHsCU"
-	}
-}
-```
-
-NOTE: this easy-start version does not allow for revocation. Read on to see how you can configure it for revocation.
-
-NOTE: CURL can get a bit clunky if you want to experiment, so you might consider trying [Postman](https://www.postman.com/downloads/) which makes it very easy to construct and send http calls.
 
 ### Revoking
 
