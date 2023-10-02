@@ -1,10 +1,14 @@
-# Digital Credentials Consortium exchange-coordinator
+# Digital Credentials Consortium workflow-coordinator
 
-[![Build status](https://img.shields.io/github/actions/workflow/status/digitalcredentials/exchange-coordinator/main.yml?branch=main)](https://github.com/digitalcredentials/exchange-coordinator/actions?query=workflow%3A%22Node.js+CI%22)
+[![Build status](https://img.shields.io/github/actions/workflow/status/digitalcredentials/workflow-coordinator/main.yml?branch=main)](https://github.com/digitalcredentials/workflow-coordinator/actions?query=workflow%3A%22Node.js+CI%22)
 
 A NodeJS Express server that coordinates micro-services within a Docker Compose Network to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app) using the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange) and either the [Credential Handler API (CHAPI)](https://chapi.io) or the custom DCC deeplink protocol to select a wallet.
 
 This is meant to be used within a larger institutional system that already handles authentication and storage/retrieval of the user data (needed for the credential), and so simply passes that data to this system after authentication, at which point this system then largely handles the exchange with the wallet.
+
+NOTE: because this coordinator interacts with a wallet through the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange), the coordinator has to be callable from the wallet, and for wallets that run on a phone, this can be tricky when trying this out locally. If you are new to this, you may want to first start by experimenting with the [DCC Issuer Coordinator](https://github.com/digitalcredentials/issuer-coordinator) which issuers credentials that can then be independently imported into a wallet.
+
+We have also made available a public demonstration of the exchange, which you can try by opening this [link](https://issuer.dcconsortium.org/demo) from a web browser on the same phone on which you've installed the [Learner Credential Wallet (LCW)](https://lcw.app)
 
 ## Table of Contents
 
@@ -14,6 +18,7 @@ This is meant to be used within a larger institutional system that already handl
 - [API](#api)
 - [Easy Start](#easy-start)
   - [Learner Credential Wallet](#learner-credential-wallet)
+- [Versioning](#versioning)
 - [Configuration](#configuration)
   - [Environment Variables](#environment-variables)
   - [Tenants](#tenants)
@@ -36,7 +41,7 @@ This is meant to be used within a larger institutional system that already handl
 
 Use this server to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app). Credentials can optionally be allocated a [revocation status](https://www.w3.org/TR/vc-status-list/) that can later be used to revoke the credential.
 
-The issued credentials are _assigned_ to a [Decentralized Identifier (DID)](https://www.w3.org/TR/did-core/) that the wallet provides (on behalf of the holder) to the issuer as part of the exchange. DIDs are effectively collections of cryptographic key pairs, which in this case later allow the holder to later demonstrate that they control the credential by using a private key associated with their DID to sign challenges.
+The issued credentials are _assigned_ to a [Decentralized Identifier (DID)](https://www.w3.org/TR/did-core/) that the wallet provides (on behalf of the holder) to the issuer as part of the exchange. DIDs are effectively collections of cryptographic key pairs, which in this case later allow the holder to demonstrate that they control the credential by signing challenges using a private key associated with their DID.
 
 ## Architecture
 
@@ -176,7 +181,7 @@ And example of the returned object:
 
 ```
 
-The **retrievalId** is used to identify the result for each credential when more than one credential has been posted in the same post. The issuer supplies these retrievalIds when posting the data.
+The **retrievalId** is used to identify the result for each credential when more than one credential has been posted in the same post. The issuer supplies these retrievalIds when posting the data. The retrievalId can be anything that makes sense for the issuer.
 
 The **directDeepLink** will open the [Learner Credential Wallet](https://lcw.app) after which the wallet invokes the **vc_request_url** that is passed as a query parameter on the deeplink, and gets the signed VC back immediately.
 
@@ -188,9 +193,9 @@ The institutional software then offers the student the appropriate option. For a
 
 ## Easy Start
 
-We've tried hard to make this as simple as possible to install and maintain, but also easy to evaluate and understand as you consider whether digital credentials are useful for your project, and whether this issuer would work for you. 
+We've tried hard to make this as simple as possible to install and maintain, but also easy to evaluate and understand as you consider whether digital credentials are useful for your project, and whether this issuer would work for you.
 
-These four step should take less than five minutes in total:
+Installing and running the issuer is straightforward and should take less than five minutes in total. The trickier part is exposing your coordinator so that a wallet can make calls to your coordinator. We describe some approaches further below.
 
 ### Install Docker
 
@@ -204,16 +209,16 @@ Create a file called docker-compose.yml and add the following
 version: '3.5'
 services:
   exchange-coordinator:
-    image: digitalcredentials/exchange-coordinator
+    image: digitalcredentials/exchange-coordinator:0.1.0
     ports:
       - "4005:4005"
   signing-service:
-    image: digitalcredentials/signing-service
+    image: digitalcredentials/signing-service:0.1.0
   transaction-service:
-    image: digitalcredentials/transaction-service
+    image: digitalcredentials/transaction-service:0.1.0
 ```
 
-The [docker-compose.yml](./docker-compose.yml) file in this repository is identical so you can just use that if you've cloned this repository.
+Note that as of this writing (October 2nd 2023), the versions of each image are at 0.1.0. These will change over time. Read more in [Versioning](#versioning).
 
 ### Run it
 
@@ -223,21 +228,37 @@ From the terminal in the same directory that contains your docker-compose.yml fi
 
 ### Issue
 
-Issue a test credential by opening this url in your web browser:
+This is a bit tricky because the credentials are issued to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app) and so your wallet needs to make a call to your locally running issuer, which normally runs on localhost, and which your phone doesn't usually by default have access to. You have at least two choices here:
 
-[http://localhost:4005/demo](http://localhost:4005/demo)  (coming soon!)
+1. Run the wallet locally on your computer within a phone emulator. One way to do that with the [Learner Credential Wallet (LCW)](https://lcw.app) is described [here](https://github.com/digitalcredentials/learner-credential-wallet#development-setup).
 
-This will take you through the exchange between a wallet and this issuer. The web page plays the part of the wallet (which is normally an app on your phone). 
+Then you can issue a test credential by opening this url in the web browser of your phone emulator :
 
-To instead actually issue to the [Learner Credential Wallet (LCW)](https://lcw.app) running on your phone, you'll have to tell your phone where the issuer is running. You can do that by following these [instructions](https://dev.to/shaundai/using-localhost-for-mobile-development-1k4g) which tells you how to find the IP on which your laptop is running in your local network, and then open the following URL from a web browser on your laptop (replacing YOUR_IP with the IP you just determined):
+[http://localhost:4005/demo](http://localhost:4005/demo)
 
-`http://YOUR_IP:4005/lcw-demo`
+This should trigger the opening of the LCW app on your phone, with a prompt to download a credential.
+
+2. Issue directly to the [Learner Credential Wallet (LCW)](https://lcw.app) running on your physical phone by connecting your phone to your computer. You can do that by following these [instructions](https://dev.to/shaundai/using-localhost-for-mobile-development-1k4g) which tells you how to find the IP on which your laptop is running in your local network, and then open the following URL from a web browser on your laptop (replacing YOUR_IP with the IP you just determined):
+
+`http://YOUR_IP:4005/demo`
 
 This should trigger the opening of the LCW app on your phone, with a prompt to download a credential.
 
 NEXT STEP: you'll soon want to issue your own credential, signed with your own keys. Continue on to [Setup](#setup) to find out how to do configure the Docker Compose network to do just that.
 
 NOTE: Revocation is not enabled in the Quick Start. You've got to setup a couple of things to [ENABLE REVOCATION](#create-github-repositories), but you'll probably first want to configure the other parts of the application, make sure they work, and then enanble revocation. So let's get setup...
+
+## Versioning
+
+The workflow-coordinator and the services it coordinates are all intended to run as docker images within a docker compose network. For convenience we've published those images to Docker Hub so that you don't have to build them locally yourself from the github repositories.
+
+The images on Docker Hub will of course be updated to add new functionality and fix bugs. Rather than overwrite the default (`latest`) version on Docker Hub for each update, we've adopted the [Semantic Versioning Guidelines](https://semver.org) with our docker image tags.
+
+We DO NOT provide a `latest` tag so you must provide a tag name (i.e, the version number) for the images in your docker compose file, as we've done [here](./docker-compose.yml).
+
+To ensure you've got compatible versions of the services and the coordinator, the `major` number for each should match. At the time of writing, the versions for each are at 0.1.0, and the `major` number (the leftmost number) agrees across all three.
+
+If you do ever want to work from the source code in the repository and build your own images, we've tagged the commits in Github that were used to build the corresponding Docker image. So a github tag of v0.1.0 coresponds to a docker image tag of 0.1.0
 
 ## Configuration 
 
@@ -249,7 +270,7 @@ The app is configured with three .env files:
 * [.signing-service.env](./.signer.env)
 * [.status-service.env](./.signer.env)
 
-If you've used the QuickStart docker-compose.yml, then you'll have to point it at these files. We've pre-configured this [docker-compose.yml](./docker-compose.yml), though, so you can just use that.
+You can simply uncomment the lines in this [docker-compose.yml](./docker-compose.yml) to use the default .env files that are included in this repo. You'll of course have to modify the contents of the .env files as described in this README.
 
 ### Change Default Signing key
 
