@@ -107,44 +107,61 @@ With this endpoint the institution posts a list of the unsigned verifiable crede
 
 If the tenant is protected with a token, then the token must be submitted in the authorization header as a bearer token. See the [Tenants](#add-tenants) section.
 
-For example, to post the data for a single credential to an unprotected tenant:
+For example, this is the data you'd post for a single credential to an unprotected tenant:
 
 ```json
 {
-	"tenantName": "UN_PROTECTED_TEST",
-	"data": [{
-		"vc": {
-			"@context": ["https://www.w3.org/2018/credentials/v1", "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json", "https://w3id.org/vc/status-list/2021/v1"],
-			"id": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1",
-			"type": ["VerifiableCredential", "OpenBadgeCredential"],
-			"issuer": {
-				"id": "did:key:z6MkhVTX9BF3NGYX6cc7jWpbNnR7cAjH8LUffabZP8Qu4ysC",
-				"type": "Profile",
-				"name": "University of Wonderful",
-				"description": "The most wonderful university",
-				"url": "https://wonderful.edu/",
-				"image": {
-					"id": "https://user-images.githubusercontent.com/947005/133544904-29d6139d-2e7b-4fe2-b6e9-7d1022bb6a45.png",
-					"type": "Image"
-				}
-			},
-			"issuanceDate": "2020-01-01T00:00:00Z",
-			"name": "A Simply Wonderful Course",
-			"credentialSubject": {
-				"type": "AchievementSubject",
-				"achievement": {
-					"id": "http://wonderful.wonderful",
-					"type": "Achievement",
-					"criteria": {
-						"narrative": "Completion of the Wonderful Course - well done you!"
-					},
-					"description": "Wonderful.",
-					"name": "Introduction to Wonderfullness"
-				}
-			}
-		},
-		"retrievalId": "someId"
-	}]
+    "tenantName": "UN_PROTECTED_TEST",
+    "data": [
+        {
+            "retrievalId": "anyIdThatIsMeaningfulForYou",
+            "vc": {
+                "@context": [
+                    "https://www.w3.org/2018/credentials/v1",
+                    "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"
+                ],
+                "id": "urn:uuid:2fe53dc9-b2ec-4939-9b2c-0d00f6663b6c",
+                "type": [
+                    "VerifiableCredential",
+                    "OpenBadgeCredential"
+                ],
+                "name": "DCC Test Credential",
+                "issuer": {
+                    "type": [
+                        "Profile"
+                    ],
+                    "id": "did:key:z6MkhVTX9BF3NGYX6cc7jWpbNnR7cAjH8LUffabZP8Qu4ysC",
+                    "name": "Digital Credentials Consortium Test Issuer",
+                    "url": "https://dcconsortium.org",
+                    "image": "https://user-images.githubusercontent.com/752326/230469660-8f80d264-eccf-4edd-8e50-ea634d407778.png"
+                },
+                "issuanceDate": "2023-08-02T17:43:32.903Z",
+                "credentialSubject": {
+                    "type": [
+                        "AchievementSubject"
+                    ],
+                    "achievement": {
+                        "id": "urn:uuid:bd6d9316-f7ae-4073-a1e5-2f7f5bd22922",
+                        "type": [
+                            "Achievement"
+                        ],
+                        "achievementType": "Diploma",
+                        "name": "Badge",
+                        "description": "This is a sample credential issued by the Digital Credentials Consortium to demonstrate the functionality of Verifiable Credentials for wallets and verifiers.",
+                        "criteria": {
+                            "type": "Criteria",
+                            "narrative": "This credential was issued to a student that demonstrated proficiency in the Python programming language that occurred from **February 17, 2023** to **June 12, 2023**."
+                        },
+                        "image": {
+                            "id": "https://user-images.githubusercontent.com/752326/214947713-15826a3a-b5ac-4fba-8d4a-884b60cb7157.png",
+                            "type": "Image"
+                        }
+                    },
+                    "name": "Jane Doe"
+                }
+            }
+        }
+    ]
 }
 ```
 
@@ -155,7 +172,7 @@ The endpoint returns a json object that provides three options for selecting a w
  * [a _vpr_ custom DCC deeplink](#deeplink)
  * a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) 
 
-And example of the returned object:
+An example of the returned object:
 
 ```json
 [{
