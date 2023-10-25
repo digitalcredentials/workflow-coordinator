@@ -9,6 +9,7 @@ import invalidPathHandler from './middleware/invalidPathHandler.js';
 import verifyAuthHeader from './verifyAuthHeader.js'
 import { getConfig } from './config.js'
 import testVC from './testVC.js';
+import CoordinatorException from './CoordinatorException.js';
 import { getSignedDIDAuth, verifyDIDAuth } from './didAuth.js';
 
 async function callService(endpoint, body) {
@@ -115,9 +116,10 @@ export async function build(opts = {}) {
         async (req, res, next) => {
             try {
                 //const tenantName = req.params.tenantName //the issuer instance/tenant with which to sign
-
+console.log("in the exchange setup")
                 const exchangeData = req.body;
-                if (!exchangeData || !Object.keys(exchangeData).length) throw { code: 400, message: 'You must provide data for the exchange.' }
+                // TODO: CHECK THE INCOMING DATA FOR CORRECTNESS HERE
+                if (!exchangeData || !Object.keys(exchangeData).length) throw new CoordinatorException(400, 'You must provide data for the exchange. Check the README for details.') 
                 exchangeData.exchangeHost = exchangeHost
 
                 await verifyAuthHeader(req.headers.authorization, exchangeData.tenantName)
@@ -171,7 +173,7 @@ export async function build(opts = {}) {
                 const exchangeId = req.params.exchangeId
                 const transactionId = req.params.transactionId
                 const body = req.body;
-                if (!body || !Object.keys(body).length) throw { code: 400, message: 'A didAuth must be provided in the body' }
+                if (!body || !Object.keys(body).length) throw new CoordinatorException(400, 'A didAuth must be provided in the body.') 
                 // make a deep copy of the didAuth because something seemed to be
                 // going wrong with the streams
                 const didAuth = JSON.parse(JSON.stringify(body))
