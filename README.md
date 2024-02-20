@@ -226,7 +226,7 @@ Create a file called docker-compose.yml and add the following
 version: '3.5'
 services:
   exchange-coordinator:
-    image: digitalcredentials/exchange-coordinator:0.1.0
+    image: digitalcredentials/workflow-coordinator:0.1.0
     ports:
       - "4005:4005"
   signing-service:
