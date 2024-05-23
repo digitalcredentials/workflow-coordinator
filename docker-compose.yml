@@ -1,20 +1,23 @@
 version: '3.5'
 services:
   coordinator:
-   image: digitalcredentials/exchange-coordinator:0.1.0
-   # env_file:
-   #   - ./.coordinator.env
+    image: digitalcredentials/workflow-coordinator:0.1.0
+    env_file:
+      - ./.coordinator.env
     ports:
       - "4005:4005"
   signing:
-   image: digitalcredentials/signing-service:0.1.0
-   # env_file:
-   #   - ./.signing-service.env
-  transactions:
+    image: digitalcredentials/signing-service:0.1.0
+    env_file:
+      - ./.signing-service.env
+  transaction:
     image: digitalcredentials/transaction-service:0.1.0
-  #  env_file:
-  #    - ./.transactions-service.env
-  #status:
-    # image: digitalcredentials/status-service:0.1.0
-  #  env_file:
-  #    - ./.status-service.env
+    env_file:
+      - ./.transaction-service.env
+  status:
+    image: digitalcredentials/status-service-db:0.1.0
+    # image: digitalcredentials/status-service-git:0.1.0
+    env_file:
+      - ./.status-service-db.env
+      # - ./.status-service-git.env
+      

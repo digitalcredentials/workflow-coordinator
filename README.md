@@ -2,11 +2,11 @@
 
 [![Build status](https://img.shields.io/github/actions/workflow/status/digitalcredentials/workflow-coordinator/main.yml?branch=main)](https://github.com/digitalcredentials/workflow-coordinator/actions?query=workflow%3A%22Node.js+CI%22)
 
-A NodeJS Express server that coordinates micro-services within a Docker Compose Network to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app) using the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange) and either the [Credential Handler API (CHAPI)](https://chapi.io) or the custom DCC deeplink protocol to select a wallet.
+An Express server that coordinates micro-services within a Docker Compose Network to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model-2.0/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app) using the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange) and either the [Credential Handler API (CHAPI)](https://chapi.io) or the custom DCC deep link protocol to select a wallet.
 
 This is meant to be used within a larger institutional system that already handles authentication and storage/retrieval of the user data (needed for the credential), and so simply passes that data to this system after authentication, at which point this system then largely handles the exchange with the wallet.
 
-NOTE: because this coordinator interacts with a wallet through the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange), the coordinator has to be callable from the wallet, and for wallets that run on a phone, this can be tricky when trying this out locally. If you are new to this, you may want to first start by experimenting with the [DCC Issuer Coordinator](https://github.com/digitalcredentials/issuer-coordinator) which issuers credentials that can then be independently imported into a wallet.
+NOTE: because this coordinator interacts with a wallet through the [exchange protocol of the VC-API spec](https://w3c-ccg.github.io/vc-api/#initiate-exchange), the coordinator has to be callable from the wallet, and for wallets that run on a phone, this can be tricky when trying this out locally. If you are new to this, you may want to first start by experimenting with the [DCC Issuer Coordinator](https://github.com/digitalcredentials/issuer-coordinator) which issues credentials that can then be independently imported into a wallet.
 
 We have also made available a public demonstration of the exchange, which you can try by opening this [link](https://issuer.dcconsortium.org/demo) from a web browser on the same phone on which you've installed the [Learner Credential Wallet (LCW)](https://lcw.app)
 
@@ -16,22 +16,26 @@ We have also made available a public demonstration of the exchange, which you ca
 - [Architecture](#architecture)
 - [Wallet Exchange](#wallet-exchange)
 - [API](#api)
-- [Easy Start](#easy-start)
-  - [Learner Credential Wallet](#learner-credential-wallet)
+- [Quick Start](#quick-start)
+  - [Install Docker](#install-docker)
+  - [Create Docker Compose File](#create-docker-compose-file)
+  - [Run Service](#run-service)
+  - [Issue Credentials](#issue-credentials)
 - [Versioning](#versioning)
 - [Configuration](#configuration)
-  - [Environment Variables](#environment-variables)
+  - [Generate New Key](#generate-new-key)
   - [Tenants](#tenants)
   - [Signing Key](#signing-key)
   - [DID Registries](#did-registries)
   - [did:key](#did-key)
   - [did:web](#did-web)
   - [Protecting Tenant Endpoints](#protecting-tenant-endpoints)
-  - [Revocation](#revocation)
+  - [Revocation and Suspension](#revocation-and-suspension)
+  - [Environment Variables](#environment-variables)
 - [Usage](#usage)
   - [Integration](#integration)
   - [Issuing](#issuing)
-  - [Revoking](#revoking)
+  - [Revoking and Suspending](#revoking-and-suspending)
 - [Development](#development)
   - [Testing](#testing)
 - [Contribute](#contribute)
@@ -39,7 +43,7 @@ We have also made available a public demonstration of the exchange, which you ca
 
 ## Summary
 
-Use this server to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app). Credentials can optionally be allocated a [revocation status](https://www.w3.org/TR/vc-status-list/) that can later be used to revoke the credential.
+Use this server to issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model-2.0/) to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app). Credentials can optionally be allocated a [revocation status](https://www.w3.org/TR/vc-status-list/) that can later be used to revoke the credential.
 
 The issued credentials are _assigned_ to a [Decentralized Identifier (DID)](https://www.w3.org/TR/did-core/) that the wallet provides (on behalf of the holder) to the issuer as part of the exchange. DIDs are effectively collections of cryptographic key pairs, which in this case later allow the holder to demonstrate that they control the credential by signing challenges using a private key associated with their DID.
 
@@ -47,32 +51,32 @@ The issued credentials are _assigned_ to a [Decentralized Identifier (DID)](http
 
 This is an express app intended to run as a service within a Docker Compose network. This app coordinates calls to other express apps running as services within the same Docker Compose network, in particular:
 
-* [DCC transaction-manager-service](https://github.com/digitalcredentials/transaction-manager-service)
+* [DCC transaction-service](https://github.com/digitalcredentials/transaction-service)
 * [DCC signing-service](https://github.com/digitalcredentials/signing-service)
 
 and optionally also:
 
-* [DCC credential-status-manager-git](https://github.com/digitalcredentials/credential-status-manager-git)
-* [DCC template-service](https://github.com/digitalcredentials/template-service) (IN PROGRESS)
+* DCC [database credential status service](https://github.com/digitalcredentials/status-service-db) or [Git credential status service](https://github.com/digitalcredentials/status-service-git)
+* [DCC template service](https://github.com/digitalcredentials/template-service) (IN PROGRESS)
 
 Note that all the calls to the internal services are only available within the Docker Compose network, and are not exposed externally.
 
-Typical use would be to run this in combination with something like nginx-proxy and acme-companion (for the automated creation, renewal and use of SSL certificates) using docker-compose.  You may also run your own apps within the same Docker Compose network. You might, for example, run a react app with a user interface from which the student can request the credential. [Usage - Integration](#integration) further discusses how to incorporate this system into your own institutional system.
+Typical use would be to run this in combination with something like `nginx-proxy` and `acme-companion` (for the automated creation, renewal and use of SSL certificates) using `docker-compose`. You may also run your own apps within the same Docker Compose network. You might, for example, run a react app with a user interface from which the student can request the credential. [Usage - Integration](#integration) further discusses how to incorporate this system into your own institutional system.
 
 ## Wallet Exchange
 
 This issuer implements the [VC-API Exchange protocol](https://w3c-ccg.github.io/vc-api/) which in this case is essentially:
 
-1. the wallet (controlled by the recipient/holder, e.g., a student) tells the issuer that it wants to start a specific exchange (in this case to get a specific credential, like a diploma)
-2. the issuer replies, saying that the wallet must first provide a [Decentralized Identifier (DID)](https://www.w3.org/TR/did-core/) that belongs to the holder (i.e, the student), along with signed proof that the DID does in fact belong to the holder.
-3. the wallet sends back the DID and proof (in a DIDAuth Verifiable Presentation)
-4. the issuer verifies the proof and replies with the requested credential, issued to the supplied DID
+1. Wallet (controlled by the recipient/holder, e.g., a student) tells the issuer that it wants to start a specific exchange (in this case to get a specific credential, like a diploma)
+2. Issuer replies, saying that the wallet must first provide a [Decentralized Identifier (DID)](https://www.w3.org/TR/did-core/) that belongs to the holder (i.e, the student), along with signed proof that the DID does in fact belong to the holder
+3. Wallet sends back the DID and proof (in a DIDAuth Verifiable Presentation)
+4. Issuer verifies the proof and replies with the requested credential, issued to the supplied DID
 
 NOTE: Issuing the credential to the holder's DID later allows the holder to prove that they _control_ the credential by using their DID to sign challenges from verifiers.
 
-NOTE: we also provide an option to skip the first two steps so that the wallet can immediately post the DIDAuth after the deeplink opens it. This provides backwards compatability with wallets that implemented this simpler flow (for example as part of JFF PlugFest 2).
+NOTE: we also provide an option to skip the first two steps so that the wallet can immediately post the DIDAuth after the deep link opens it. This provides backwards compatability with wallets that implemented this simpler flow (for example as part of JFF PlugFest 2).
 
-NOTE: We further provide a convenience endpoint that is not part of the VC-API spec and that effectively allows the institution to delegate most handling to an exchange coordinator by giving the exchange coordinator everything it needs to manage the exchange without further help from the institution. This is not part of the VC-API spec and is only meant to make implementation easier for the institution. This endpoint is called by institutional software at the point after the student has been authenticated by the institutianl authentication system and the data for the credential has been retrieved from the institutional data store. 
+NOTE: We further provide a convenience endpoint that is not part of the VC-API spec and that effectively allows the institution to delegate most handling to a workflow coordinator by giving the workflow coordinator everything it needs to manage the exchange without further help from the institution. This is not part of the VC-API spec and is only meant to make implementation easier for the institution. This endpoint is called by institutional software at the point after the student has been authenticated by the institutianl authentication system and the data for the credential has been retrieved from the institutional data store.
 
 The flow looks like:
 
@@ -82,26 +86,25 @@ TODO: ADD DIAGRAM
 
 This system implements four public endpoints:
 
-Three implement the [VC-API](https://w3c-ccg.github.io/vc-api/) spec:
+Three implement from the [VC-API](https://w3c-ccg.github.io/vc-api/) spec:
 
  * [POST /exchange/{exchangeID}](https://w3c-ccg.github.io/vc-api/#initiate-exchange)
- * [POST /exchange/{exchangeID}/{transactionID}](https://w3c-ccg.github.io/vc-api/#initiate-exchange)
+ * [POST /exchange/{exchangeID}/{transactionID}](https://w3c-ccg.github.io/vc-api/#continue-exchange)
  * [POST /credentials/status](https://w3c-ccg.github.io/vc-api/#update-status)
 
-And a fourth convenience endpoint that handles most of the exchange on behalf of the institution:
+...and a fourth convenience endpoint that handles most of the exchange on behalf of the institution:
 
- * POST /exchange/setup
+ * `POST /exchange/setup`
 
-With this endpoint the institution posts a list of the unsigned verifiable credentials for which it wants deeplinks or a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) that can be used with the [Credential Handler API (CHAPI)](https://chapi.io). The posted object should have the following structure:
+With this endpoint the institution posts a list of the unsigned verifiable credentials for which it wants deep links or a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) that can be used with the [Credential Handler API (CHAPI)](https://chapi.io). The posted object should have the following structure:
 
-```
+```js
 {
-	"tenantName": "someTenantName",
-	"data": [
-		{"vc": someVCGoesHere, "retrievalId": anIdWithWhichToIdentifyThisVCInTheResult},
-		{"vc": anotherVCGoesHere, "retrievalId": aDifferentRetrievalId},
-		... however many more vcs you want to post
-	]
+  "tenantName": "someTenantName",
+  "data": [
+    {"vc": {/*someVCGoesHere*/}, "retrievalId": "anIdWithWhichToIdentifyThisVCInTheResult"},
+    {"vc": {/*anotherVCGoesHere*/}, "retrievalId": "aDifferentRetrievalId"}
+  ]
 }
 ```
 
@@ -111,65 +114,58 @@ For example, this is the data you'd post for a single credential to an unprotect
 
 ```json
 {
-    "tenantName": "UN_PROTECTED_TEST",
-    "data": [
-        {
-            "retrievalId": "anyIdThatIsMeaningfulForYou",
-            "vc": {
-                "@context": [
-                    "https://www.w3.org/2018/credentials/v1",
-                    "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"
-                ],
-                "id": "urn:uuid:2fe53dc9-b2ec-4939-9b2c-0d00f6663b6c",
-                "type": [
-                    "VerifiableCredential",
-                    "OpenBadgeCredential"
-                ],
-                "name": "DCC Test Credential",
-                "issuer": {
-                    "type": [
-                        "Profile"
-                    ],
-                    "id": "did:key:z6MkhVTX9BF3NGYX6cc7jWpbNnR7cAjH8LUffabZP8Qu4ysC",
-                    "name": "Digital Credentials Consortium Test Issuer",
-                    "url": "https://dcconsortium.org",
-                    "image": "https://user-images.githubusercontent.com/752326/230469660-8f80d264-eccf-4edd-8e50-ea634d407778.png"
-                },
-                "issuanceDate": "2023-08-02T17:43:32.903Z",
-                "credentialSubject": {
-                    "type": [
-                        "AchievementSubject"
-                    ],
-                    "achievement": {
-                        "id": "urn:uuid:bd6d9316-f7ae-4073-a1e5-2f7f5bd22922",
-                        "type": [
-                            "Achievement"
-                        ],
-                        "achievementType": "Diploma",
-                        "name": "Badge",
-                        "description": "This is a sample credential issued by the Digital Credentials Consortium to demonstrate the functionality of Verifiable Credentials for wallets and verifiers.",
-                        "criteria": {
-                            "type": "Criteria",
-                            "narrative": "This credential was issued to a student that demonstrated proficiency in the Python programming language that occurred from **February 17, 2023** to **June 12, 2023**."
-                        },
-                        "image": {
-                            "id": "https://user-images.githubusercontent.com/752326/214947713-15826a3a-b5ac-4fba-8d4a-884b60cb7157.png",
-                            "type": "Image"
-                        }
-                    },
-                    "name": "Jane Doe"
-                }
+  "tenantName": "UN_PROTECTED_TEST",
+  "data": [
+    {
+      "retrievalId": "anyIdThatIsMeaningfulForYou",
+      "vc": {
+        "@context": [
+          "https://www.w3.org/2018/credentials/v1",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"
+        ],
+        "id": "urn:uuid:2fe53dc9-b2ec-4939-9b2c-0d00f6663b6c",
+        "type": [
+          "VerifiableCredential",
+          "OpenBadgeCredential"
+        ],
+        "name": "DCC Test Credential",
+        "issuer": {
+          "type": ["Profile"],
+          "id": "did:key:z6MkhVTX9BF3NGYX6cc7jWpbNnR7cAjH8LUffabZP8Qu4ysC",
+          "name": "Digital Credentials Consortium Test Issuer",
+          "url": "https://dcconsortium.org",
+          "image": "https://user-images.githubusercontent.com/752326/230469660-8f80d264-eccf-4edd-8e50-ea634d407778.png"
+        },
+        "issuanceDate": "2023-08-02T17:43:32.903Z",
+        "credentialSubject": {
+          "type": ["AchievementSubject"],
+          "achievement": {
+            "id": "urn:uuid:bd6d9316-f7ae-4073-a1e5-2f7f5bd22922",
+            "type": ["Achievement"],
+            "achievementType": "Diploma",
+            "name": "Badge",
+            "description": "This is a sample credential issued by the Digital Credentials Consortium to demonstrate the functionality of Verifiable Credentials for wallets and verifiers.",
+            "criteria": {
+              "type": "Criteria",
+              "narrative": "This credential was issued to a student that demonstrated proficiency in the Python programming language that occurred from **February 17, 2023** to **June 12, 2023**."
+            },
+            "image": {
+              "id": "https://user-images.githubusercontent.com/752326/214947713-15826a3a-b5ac-4fba-8d4a-884b60cb7157.png",
+              "type": "Image"
             }
+          },
+          "name": "Jane Doe"
         }
-    ]
+      }
+    }
+  ]
 }
 ```
 
+The endpoint returns a JSON object that provides three options for selecting a wallet:
 
-The endpoint returns a json object that provides three options for selecting a wallet:
-
- * [a _direct_ custom DCC deeplink](#deeplink)
- * [a _vpr_ custom DCC deeplink](#deeplink)
+ * [a _direct_ custom DCC deep link](#deeplink)
+ * [a _vpr_ custom DCC deep link](#deeplink)
  * a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) 
 
 An example of the returned object:
@@ -195,20 +191,19 @@ An example of the returned object:
 		"domain": "http://localhost:4005"
 	}
 }]
-
 ```
 
-The **retrievalId** is used to identify the result for each credential when more than one credential has been posted in the same post. The issuer supplies these retrievalIds when posting the data. The retrievalId can be anything that makes sense for the issuer.
+The **retrievalId** is used to identify the result for each credential when more than one credential has been posted in the same post. The issuer supplies these IDs when posting the data. The `retrievalId` can be anything that makes sense for the issuer.
 
-The **directDeepLink** will open the [Learner Credential Wallet](https://lcw.app) after which the wallet invokes the **vc_request_url** that is passed as a query parameter on the deeplink, and gets the signed VC back immediately.
+The **directDeepLink** will open the [Learner Credential Wallet](https://lcw.app) after which the wallet invokes the **vc_request_url** that is passed as a query parameter on the deep link, and gets the signed VC back immediately.
 
-The **vprDeepLink** will open the [Learner Credential Wallet](https://lcw.app) after which the wallet similarly invokes the **vc_request_url** but in this case the result of that call is a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/)  request for a DIDAuth. So this is a two step exchange whereas the directDeepLink is a one step exchange. **IMPORTANT NOTE**: this flow has not yet been implemented in the [Learner Credential Wallet](https://lcw.app).
+The **vprDeepLink** will open the [Learner Credential Wallet](https://lcw.app) after which the wallet similarly invokes the **vc_request_url** but in this case the result of that call is a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) request for a DIDAuth. So this is a two-step exchange whereas the `directDeepLink` is a one-step exchange.
 
-The **chapiVPR** is a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/)  that is meant to be used with a [Credential Handler API (CHAPI)](https://chapi.io) _get_ call to pass the [VPR](https://w3c-ccg.github.io/vp-request-spec/)  into a wallet which will then make a call to the exchange endpoint to get back the signed verifiable credential. **IMPORTANT NOTE**: this flow has not yet been implemented in the [Learner Credential Wallet](https://lcw.app).
+The **chapiVPR** is a [Verifiable Presentation Request (VPR)](https://w3c-ccg.github.io/vp-request-spec/) that is meant to be used with a [Credential Handler API (CHAPI)](https://chapi.io) _get_ call to pass the [VPR](https://w3c-ccg.github.io/vp-request-spec/) into a wallet which will then make a call to the exchange endpoint to get back the signed verifiable credential.
 
-The institutional software then offers the student the appropriate option. For an example of how this would work look at the GET /demo endpoint which demonstrates with a working example how an institution would use the exchange-coordinator.
+The institutional software then offers the student the appropriate option. For an example of how this would work look at the `GET /demo` endpoint which demonstrates with a working example how an institution would use the `workflow-coordinator`.
 
-## Easy Start
+## Quick Start
 
 We've tried hard to make this as simple as possible to install and maintain, but also easy to evaluate and understand as you consider whether digital credentials are useful for your project, and whether this issuer would work for you.
 
@@ -218,32 +213,39 @@ Installing and running the issuer is straightforward and should take less than f
 
 Docker have made this very easy, with [installers for Windows, Mac, and Linux](https://docs.docker.com/engine/install/) that make it as easy to install as any other application.
 
-### Make a Docker Compose file
+### Create Docker Compose File
 
-Create a file called docker-compose.yml and add the following
+Create a file called `docker-compose.yml` and add the following:
 
-```
+```yaml
 version: '3.5'
 services:
-  exchange-coordinator:
+  coordinator:
     image: digitalcredentials/workflow-coordinator:0.1.0
     ports:
       - "4005:4005"
-  signing-service:
+  signing:
     image: digitalcredentials/signing-service:0.1.0
-  transaction-service:
+  transaction:
     image: digitalcredentials/transaction-service:0.1.0
+  status:
+    image: digitalcredentials/status-service-db:0.1.0
+  # NOTE: If you would prefer to use the Git based status manager instead
+  # of the database status manager, uncomment this section and comment
+  # out the previous section
+  # status:
+  #   image: digitalcredentials/status-service-git:0.1.0
 ```
 
 Note that as of this writing (October 2nd 2023), the versions of each image are at 0.1.0. These will change over time. Read more in [Versioning](#versioning).
 
-### Run it
+### Run Service
 
 From the terminal in the same directory that contains your docker-compose.yml file:
 
 ```docker compose up```
 
-### Issue
+### Issue Credentials
 
 This is a bit tricky because the credentials are issued to a wallet like the [Learner Credential Wallet (LCW)](https://lcw.app) and so your wallet needs to make a call to your locally running issuer, which normally runs on localhost, and which your phone doesn't usually by default have access to. You have at least two choices here:
 
@@ -267,7 +269,7 @@ NOTE: Revocation is not enabled in the Quick Start. You've got to setup a couple
 
 ## Versioning
 
-The workflow-coordinator and the services it coordinates are all intended to run as docker images within a docker compose network. For convenience we've published those images to Docker Hub so that you don't have to build them locally yourself from the github repositories.
+The `workflow-coordinator` and the services it coordinates are all intended to run as docker images within a docker compose network. For convenience we've published those images to Docker Hub so that you don't have to build them locally yourself from the github repositories.
 
 The images on Docker Hub will of course be updated to add new functionality and fix bugs. Rather than overwrite the default (`latest`) version on Docker Hub for each update, we've adopted the [Semantic Versioning Guidelines](https://semver.org) with our docker image tags.
 
@@ -279,68 +281,116 @@ If you do ever want to work from the source code in the repository and build you
 
 ## Configuration 
 
-There are a few things you'll want to configure, in particular setting your own signing keys (so that only you can sign your credentials). Other options include enabling revocation, or allowing for 'multi-tenant' signing, which you might use, for example, to sign credentials for different courses with a different key.
+There are a few things you'll want to configure. These include, but may not be limited to:
+* Your signing keys, which enable only you to sign your credentials
+* Revocation/suspension support
+* "Multi-tenant" signing, which enables you to use different keys for different credentialing purposes (e.g., signing credentials for different courses)
 
-The app is configured with three .env files:
+The app is configured with four `.env` files (In practice, it is three, because you only need to configure one of the `.status-service-*.env` files, depending on if you are using the database status manager or the Git status manager):
 
-* [.coordinator.env](./.coordinator.env)
-* [.signing-service.env](./.signer.env)
-* [.status-service.env](./.signer.env)
+* [.coordinator.env](.coordinator.env)
+* [.signing-service.env](.signing-service.env)
+* [.status-service-db.env](.status-service-db.env)
+* [.status-service-git.env](.status-service-git.env)
 
-You can simply uncomment the lines in this [docker-compose.yml](./docker-compose.yml) to use the default .env files that are included in this repo. You'll of course have to modify the contents of the .env files as described in this README.
+If you've used the Quick Start `docker-compose.yml`, then you'll have to change it a bit to point at these files. Alternatively, we've pre-configured this [docker-compose.yml](docker-compose.yml), though, so you can just use that.
 
-### Change Default Signing key
+The issuer is pre-configured with a default signing key for testing that can only be used for testing and evaluation. Any credentials signed with this key are meaningless because anyone else can use it to sign credentials, and so could create fake copies of your credentials which would appear to be properly signed. There would be no way to know that it was fake. So, you'll want to add our own key which you do by generating a new key and setting it for a new tenant name.
 
-The issuer is pre-configured with a default signing key that can only be used for testing and evaluation. Any credentials signed with this key are meaningless because anyone else can use it to sign credentials, and so could create fake copies of your credentials which would appear to be properly signed. There would be no way to know that it was fake.
+#### Generate New Key
 
-TODO: may want to by default auto-generate an ephemeral key on startup, that only lasts for the life of the process. Upside is that it wouldn't validate in any registry and so would force people to generate and set their own key. Downside is that credentials wouldn't validate, and so wouldn't demonstrate that functionality, but on the hand, would demonstrate failed verification.
+To issue your own credentials, you must generate your own signing key and keep it private. At the moment, the issuer supports two [DID](https://www.w3.org/TR/did-core/) key formats/protocols: `did:key` and `did:web`.
 
-#### Generate a new key
+The `did:key` DID is one of the simpler DID implementations and doesn't require that the DID document be hosted anywhere. However, many organizations are likely to prefer the `did:web` DID for production deployments. This DID format and protocol allows the owner to rotate (change) their signing key without having to update every credential that is signed by the old keys.
 
-To issue your own credentials you must generate your own signing key and keep it private.  We've tried to make that a little easier by providing a convenience endpoint in the issuer that you can use to generate a brand new key.  You can hit the endpoint with the following CURL command (in a terminal):
+We've tried to simplify key generation by providing convenience endpoints in the issuer that you can use to generate a brand new key. You can generate a DID key with these cURL commands (in a terminal):
 
-`curl --location 'http://localhost:4007/seedgen'`
+- `did:key`:
+  ```bash
+  curl --location 'http://localhost:4005/did-key-generator'
+  ```
+- `did:web`:
+  ```bash
+  curl \
+    --location 'localhost:4006/did-web-generator' \
+    --header 'Content-Type: application/json' \
+    --data-raw '{
+      "url": "https://raw.githubusercontent.com/user-or-org/did-web-test/main"
+    }'
+  ```
 
-This will return a json document with:
+These commands will return a JSON document that contains the following data:
 
-- a seed
+- a secret seed
 - the corresponding DID
-- the corresponding DID Document
+- the corresponding DID document
 
-The returned result will look something like this:
+Here is an example output for `did:key`:
 
-```
+```json
 {
-	"seed": "z1AjQUBZCNoiyPUC8zbbF29gLdZtHRqT6yPdFGtqJa5VfQ6",
-	"did": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
-	"didDocument": {
-		"@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/suites/ed25519-2020/v1", "https://w3id.org/security/suites/x25519-2020/v1"],
-		"id": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
-		"verificationMethod": [{
-			"id": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
-			"type": "Ed25519VerificationKey2020",
-			"controller": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
-			"publicKeyMultibase": "z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"
-		}],
-		"authentication": ["did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"],
-		"assertionMethod": ["did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"],
-		"capabilityDelegation": ["did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"],
-		"capabilityInvocation": ["did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"],
-		"keyAgreement": [{
-			"id": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6LSnYW9e4Q4EXTvdjDhKyr2D1ghBfSLa5dJGBfzjG6hyPEt",
-			"type": "X25519KeyAgreementKey2020",
-			"controller": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
-			"publicKeyMultibase": "z6LSnYW9e4Q4EXTvdjDhKyr2D1ghBfSLa5dJGBfzjG6hyPEt"
-		}]
-	}
+  "seed": "z1AjQUBZCNoiyPUC8zbbF29gLdZtHRqT6yPdFGtqJa5VfQ6",
+  "did": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
+  "didDocument": {
+    "@context": [
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/suites/ed25519-2020/v1",
+      "https://w3id.org/security/suites/x25519-2020/v1"
+    ],
+    "id": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
+    "verificationMethod": [{
+      "id": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
+      "type": "Ed25519VerificationKey2020",
+      "controller": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
+      "publicKeyMultibase": "z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"
+    }],
+    "authentication": ["did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"],
+    "assertionMethod": ["did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"],
+    "capabilityDelegation": ["did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"],
+    "capabilityInvocation": ["did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4"],
+    "keyAgreement": [{
+      "id": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4#z6LSnYW9e4Q4EXTvdjDhKyr2D1ghBfSLa5dJGBfzjG6hyPEt",
+      "type": "X25519KeyAgreementKey2020",
+      "controller": "did:key:z6MkweTn1XVAiFfHjiH48oLknjNqRs43ayzguc8G8VbEAVm4",
+      "publicKeyMultibase": "z6LSnYW9e4Q4EXTvdjDhKyr2D1ghBfSLa5dJGBfzjG6hyPEt"
+    }]
+  }
 }
 ```
 
-Now that you've got your key you'll want to set it...
+...and here is an example output for `did:web` \*:
+
+```json
+{
+  "seed": "z1AcNXDnko1P6QMiZ3bxsraNvVtRbpXKeE8GNLDXjBJ5UHz",
+  "decodedSeed": "DecodedUint8ArraySeed",
+  "did": "did:web:raw.githubusercontent.com:user-or-org:did-web-test:main",
+  "didDocument": {
+    "@context": [
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/suites/ed25519-2020/v1",
+      "https://w3id.org/security/suites/x25519-2020/v1"
+    ],
+    "id": "did:web:raw.githubusercontent.com:user-or-org:did-web-test:main",
+    "assertionMethod": [
+      {
+        "id": "did:web:raw.githubusercontent.com:user-or-org:did-web-test:main#z6MkfGZKFTyxiH9HgFUHbPQigEWh8PtFaRkESt9oQLiTvhVq",
+        "type": "Ed25519VerificationKey2020",
+        "controller": "did:web:raw.githubusercontent.com:user-or-org:did-web-test:main",
+        "publicKeyMultibase": "z6MkfGZKFTyxiH9HgFUHbPQigEWh8PtFaRkESt9oQLiTvhVq"
+      }
+    ]
+  }
+}
+```
+
+**\* Note:** For the `did:web` key, the value of `didDocument` needs to be hosted at `${DID_WEB_URL}/.well-known/did.json`, where `DID_WEB_URL` is the issuer controlled URL that was passed as the `url` field of the request body in the `did:web` cURL command above. In the example above, this URL is https://raw.githubusercontent.com/user-or-org/did-web-test/main, because we are using GitHub to host a DID document in a repo named `did-web-test`, owned by user/org `user-or-org`, at the path `/.well-known/did.json`. In a production deployment, this might be something like https://registrar.example.edu.
+
+Now that you've got your key, you'll want to enable it by adding a new tenant to use the seed.
 
 #### Set Signing Key
 
-Signing keys are set as 'seeds' in the [.signer.env](.signer.env) file for the signer-service. 
+Signing keys are set as 'seeds' in the [.signing-service.env](.signing-service.env) file for the `signing-service`.
 
 The default signing key is set as:
 
@@ -368,7 +418,7 @@ We're calling these differents signing authorities 'tenants'.
 
 #### Add a Tenant Seed
 
-Adding a tenant is simple. Just add another `TENANT_SEED_{TENANT_NAME}` environment variable in [.signer.env](.signer.env). The value of the variable should be a seed. Generate a new seed as explained in [Generate a new key](#generate-a-new-key), and set it as explained for the default tenant in [Set Signing Key](#set-signing-key).
+Adding a tenant is simple. Just add another `TENANT_SEED_{TENANT_NAME}` environment variable in [.signing-service.env](.signing-service.env). The value of the variable should be a seed. Generate a new seed as explained in [Generate New Key](#generate-new-key), and set it as explained for the default tenant in [Set Signing Key](#set-signing-key).
 
 #### Declare Tenant Endpoints
 
@@ -380,7 +430,7 @@ Add a `TENANT_TOKEN_{TENANT_NAME}` environment variable to the [.coordinator.env
 
 #### Tenants Example
 
-To set up two tenants, one for degrees and one for completion of the Econ101 course, and you wanted to secure the degrees tenant but not the Econ101, then you could create the tenants by setting the following in the [.signer.env](.signer.env) file:
+To set up two tenants, one for degrees and one for completion of the Econ101 course, and you wanted to secure the degrees tenant but not the Econ101, then you could create the tenants by setting the following in the [.signing-service.env](.signing-service.env) file:
 
 ```
 TENANT_SEED_DEGREES=z1AoLPRWHSKasPH1unbY1A6ZFF2Pdzzp7D2CkpK6YYYdKTN
@@ -403,7 +453,7 @@ http://myhost.org/instance/econ101/credentials/issue
 And since you set a token for the degrees tenant, you'll have to include that token in the auth header as a Bearer token.  A curl command to issue on the degrees endpoint would then look like:
 
 ```
-curl --location 'http://localhost:4007/instance/degrees/credentials/issue' \
+curl --location 'http://localhost:4005/instance/degrees/credentials/issue' \
 --header 'Authorization: Bearer 988DKLAJH93KDSFV' \
 --header 'Content-Type: application/json' \
 --data-raw '{ 
@@ -411,32 +461,33 @@ curl --location 'http://localhost:4007/instance/degrees/credentials/issue' \
 }'
 ```
 
-### Enable Revocation
+### Revocation and Suspension
 
-The issuer provides an optional revocation (or 'status') mechanism that implements the [StatusList2021 specification](https://www.w3.org/TR/vc-status-list/), using Github to store the access list. So to use the list you'll have to create two new github repositories that will be used exclusively to manage the status.  Full details of the implementation are [here](https://github.com/digitalcredentials/status-list-manager-git)
+The issuer provides an optional revocation/suspension mechanism that implements [Bitstring Status List](https://www.w3.org/TR/vc-bitstring-status-list/), using [database services](https://github.com/digitalcredentials/credential-status-manager-db) or [Git services](https://github.com/digitalcredentials/status-list-manager-git) to store the status list. We recommend using the database implementation for production and test deployments and the Git implementation only for light testing/experimental purposes.
 
-For this MVP implementation of the issuer we've only exposed the github options, but if you would like to use gitlab instead, just let us know and we can expose those options.
+To enable status updates, set `ENABLE_STATUS_SERVICE` to `true` in `.coordinator.env`. To perform revocations and suspensions, see the [Usage - Revoking and Suspending](#revoking-and-suspending) section below.
 
-Revoking a credential is described in [Usage - revoking](#revoking)
+### Environment Variables
 
-#### Create Github repositories
+These are all of the general environment variables that you will need to configure in `.coordinator.env`:
 
-Create two repositories, one public and one private. Call them anything you like, but something like myproject-status-list (public) and myproject-status-list-meta (private) are good choices. If you need help, instructions are [here](https://github.com/digitalcredentials/credential-status-manager-git#create-credential-status-repositories)
-
-Get a Github token with access to the repositories as described [here](https://github.com/digitalcredentials/credential-status-manager-git#generate-access-tokens)
-
-Now set these in the [.status.env](.status.env) file, which has the following options:
-
-| Key | Description | Default | Required |
+| Key | Description | Type | Required |
 | --- | --- | --- | --- |
-| `PORT` | http port on which to run the express app | 4008 | no |
-| `CRED_STATUS_OWNER` | name of the owner account (personal or organization) in the source control service that will host the credential status resources | no | yes if ENABLE_STATUS_ALLOCATION is true |
-| `CRED_STATUS_REPO_NAME` | name of the credential status repository | no | yes if ENABLE_STATUS_ALLOCATION is true |
-| `CRED_STATUS_META_REPO_NAME` | name of the credential status metadata repository | no | yes if ENABLE_STATUS_ALLOCATION is true |
-| `CRED_STATUS_ACCESS_TOKEN` | Github access token for the credential status repositories | no | yes if ENABLE_STATUS_ALLOCATION is true |
-| `CRED_STATUS_DID_SEED` | seed used to deterministically generate DID | no | yes if ENABLE_STATUS_ALLOCATION is true |
+| `SIGNING_SERVICE` | domain of signing service | string | no (default: `SIGNER:4006`) |
+| `STATUS_SERVICE` | domain of status service | string | no (default: `STATUS:4008`) |
+| `TENANT_TOKEN_{TENANT_NAME}` | HTTP authorization bearer token to secure service endpoint access for a given tenant | string | yes |
+| `PORT` | HTTP port on which to run the express app | number | no (default: `4005`) |
+| `ENABLE_ACCESS_LOGGING` | whether to enable access logging | boolean | no (default: `true`) |
+| `ENABLE_STATUS_SERVICE` | whether to enable status | boolean | no (default: `true`) |
+| `ENABLE_HTTPS_FOR_DEV` | whether to enable HTTPS in a development instance of the app | boolean | no (default: `true`) |
 
-The `CRED_STATUS_DID_SEED` is set to a default seed, usable by anyone for testing. You'll have to change that to use your own seed. Follow the instructions in [Generate a new Key](#generate-a-new-key) to generate a new key seed, and set the value (from the 'seed' property of the object returned from the seed generator). 
+These are the environment variables that you will need to configure in `.signing-service.env`:
+
+| Key | Description | Type | Required |
+| --- | --- | --- | --- |
+| `TENANT_SEED_{TENANT_NAME}` | secret key deterministically associated with the issuer DID | string | yes |
+
+In addition to the variables defined above, you will also need to provide environment bindings for status related configurations in `.status-service-db.env` or `.status-service-git.env`. Because there are two different implementations of a credential status manager - one for database storage and one for Git storage - you need to populate the appropriate file, depending on which one you want to use. For the database solution, please define at least the required fields specified [here](https://github.com/digitalcredentials/status-service-db/blob/main/README.md#environment-variables) and for the Git solution, please define at least the required fields specified [here](https://github.com/digitalcredentials/status-service-git/blob/main/README.md#environment-variables).
 
 ### DID Registries
 
@@ -466,71 +517,52 @@ There are many ways to incorporate this system into your own flows. A typical fl
 
 TODO: DESCRIBE other POSSIBLE CONFIGURATIONS
 
-### Revoking
+### Revoking and Suspending
 
-Revocation is more fully explained in the StatusList2021 specification and the DCC [git based status implemenation](https://github.com/digitalcredentials/credential-status-manager-git), but it amounts to POSTing an object to the revocation endpoint, like so:
+Revocation and suspension are more fully explained in the [Bitstring Status List](https://www.w3.org/TR/vc-bitstring-status-list/) specification and our implemenations thereof, but effectively, it amounts to POSTing an object to the status update endpoint, like so:
 
-```
-{
-	credentialId: 'id_added_by_status_manager_to_credentialStatus_propery_of_VC',
-	credentialStatus: [{
-		type: 'StatusList2021Credential',
-		status: 'revoked'
+```bash
+curl --location 'http://localhost:4005/instance/test/credentials/status' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+	"credentialId": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1",
+	"credentialStatus": [{
+		"type": "BitstringStatusListCredential",
+		"status": "revoked"
 	}]
-}
+}'
 ```
 
-The important part there is the `credentialId`, which is listed in the `credentialStatus` section of the issued credential (`credentialStatus` is added by the status service), and which you have to store at the point when you issue the credential. The `credentialStatus` section looks like this:
+The important part there is the `credentialId`. If an issuer provides an `id` field on a credential, the status service will pick this up and save the credential under this ID, as long as it is a valid VC ID, per [these guidelines](https://www.w3.org/TR/vc-data-model-2.0/#identifiers) (e.g., URL, URN). If an ID is not provided, the status service will automatically generate one and attach it to the credential as the `id` field.
 
-```
-"credentialStatus": {
-        "id": "https://digitalcredentials.github.io/credential-status-jc-test/XA5AAK1PV4#16",
-        "type": "StatusList2021Entry",
-        "statusPurpose": "revocation",
-        "statusListIndex": 16,
-        "statusListCredential": "https://digitalcredentials.github.io/credential-status-jc-test/XA5AAK1PV4"
-    }
-```
+It is important that you save this value in your system during the issuance process, as you will need it to perform revocations and suspensions in the future. A common approach might be to add another column to whatever local database you are using for your credential records, which would then later make it easier for you to find the ID you need by searching the other fields like student name or student ID.
 
-and the id you need is in the `id` property.
-
-So again, the important point here is that you must store the credentialStatus.id for all credentials that you issue. A common approach might be to add another column to whatever local database you are using for your credential records, which would then later make it easier for you to find the id you need by searching the other fields like student name or student id.
-
-NOTE: you'll of course have to have [set up revocation](#enable-revocation) for this to work. If you've only done the QuickStart then you'll not be able to revoke.
+**Note:** You'll of course have to enable [status updates](#revocation-and-suspension) for this to work. If you've only done the Quick Start then you'll not be able to revoke and suspend.
 
 ## Development
 
-To run the exchange-coordinator locally from the cloned repository (rather than using docker compose to pull in docker hub images), you'll also have to clone the repository for the other services that this coordinator calls:
+To run the `workflow-coordinator` locally from the cloned repository, you'll also have to clone the repository for the [signing-service](https://github.com/digitalcredentials/signing-service) and the [transaction-service](https://github.com/digitalcredentials/transaction-service) and have them running locally at the same time. Additionally, if you want to include status allocation, you'll also have to clone one of the status service repositories: [status-service-db](https://github.com/digitalcredentials/status-service-db), [status-service-git](https://github.com/digitalcredentials/status-service-git).
 
-* [signing-service](https://github.com/digitalcredentials/signing-service) 
-* [transaction-service](https://github.com/digitalcredentials/transaction-service)
-
-and optionally, if you are allocating a status position for revocation:
-
-* [status-service](https://github.com/digitalcredentials/signing-service)
-
-and have them all running locally at the same time.
-
-When running locally, the system picks up environment variables from the standard [.env](./.env) file, rather than from the env files that we recommend using with docker compose.
+When running locally, the system picks up environment variables from the standard [.env](.env) file, rather than from the `.env` files that we recommend using with Docker Compose.
 
 ### Installation
 
-Clone code then cd into directory and:
+Clone code, cd into the directory, and run:
 
-```
+```bash
 npm install
 npm run dev
 ```
 
-If for whatever reason you need to run the server over https, you can set the `ENABLE_HTTPS_FOR_DEV` environment variable to true.  Note, though, that this should ONLY be used for development.
-
 ### Testing
 
-Testing uses supertest, mocha, and nock to test the endpoints.  To run tests:
+Testing uses `supertest`, `mocha`, and `nock` to test the endpoints. To run tests:
 
-```npm run test```
+```bash
+npm run test
+```
 
-This coordinator coordinates http calls out to other services, but rather than have to make these calls for every test, and possibly in cases where outgoing http calls aren't ideal, we've used [nock](https://github.com/nock/nock) to mock out the http calls so that the actual calls needn't be made - nock instead returns our precanned replies.
+Note that when testing we don't actually want to make live HTTP calls to the services, so we've used Nock to intercept the HTTP calls and return precanned data.
 
 ## Contribute
 

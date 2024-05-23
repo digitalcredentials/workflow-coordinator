@@ -1,14 +1,12 @@
 import testVC from './testVC.js';
 
-  // "credentialStatus":
-  const credentialStatus =  {
-    "id": "https://digitalcredentials.github.io/credential-status-jc-test/XA5AAK1PV4#16",
-    "type": "StatusList2021Entry",
-    "statusPurpose": "revocation",
-    "statusListIndex": 16,
-    "statusListCredential": "https://digitalcredentials.github.io/credential-status-jc-test/XA5AAK1PV4"
+const credentialStatus =  {
+  "id": "https://digitalcredentials.github.io/credential-status-jc-test/XA5AAK1PV4#16",
+  "type": "BitstringStatusListEntry",
+  "statusPurpose": "revocation",
+  "statusListIndex": 16,
+  "statusListCredential": "https://digitalcredentials.github.io/credential-status-jc-test/XA5AAK1PV4"
 }
-
 
 const getUnsignedVC = () => JSON.parse(JSON.stringify(testVC))
 const getUnsignedVCWithoutSuiteContext = () => {

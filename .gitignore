@@ -75,7 +75,8 @@ types/
 # dotenv environment variables file
 .env
 .signing-service.env
-.status-service.env
+.status-service-db.env
+.status-service-git.env
 .coordinator.env
 .env.test
 
