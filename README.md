@@ -286,12 +286,11 @@ There are a few things you'll want to configure. These include, but may not be l
 * Revocation/suspension support
 * "Multi-tenant" signing, which enables you to use different keys for different credentialing purposes (e.g., signing credentials for different courses)
 
-The app is configured with four `.env` files (In practice, it is three, because you only need to configure one of the `.status-service-*.env` files, depending on if you are using the database status manager or the Git status manager):
+The app is configured with three `.env` files (Note that you only need to configure one of the `.status-service-*.env` files, depending on if you are using the database status manager or the Git status manager):
 
 * [.coordinator.env](.coordinator.env)
 * [.signing-service.env](.signing-service.env)
-* [.status-service-db.env](.status-service-db.env)
-* [.status-service-git.env](.status-service-git.env)
+* [.status-service-db.env](.status-service-db.env) OR [.status-service-git.env](.status-service-git.env)
 
 If you've used the Quick Start `docker-compose.yml`, then you'll have to change it a bit to point at these files. Alternatively, we've pre-configured this [docker-compose.yml](docker-compose.yml), though, so you can just use that.
 
