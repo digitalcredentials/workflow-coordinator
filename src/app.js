@@ -10,7 +10,8 @@ import verifyAuthHeader from './verifyAuthHeader.js'
 import { getConfig } from './config.js'
 import testVC from './testVC.js';
 import CoordinatorException from './CoordinatorException.js';
-import { getSignedDIDAuth, verifyDIDAuth } from './didAuth.js';
+import { getSignedDIDAuth } from './didAuth.js';
+import { getDataForExchangeSetupPost } from './test-fixtures/vc.js';
 
 async function callService(endpoint, body) {
 
@@ -32,6 +33,41 @@ export async function build(opts = {}) {
     app.use(express.json());
     app.use(express.urlencoded({ extended: false }));
     app.use(cors())
+
+    app.get('/healthz', async function(req, res) {
+        const baseURL = `${req.protocol}://${req.headers.host}`
+        const testData = getDataForExchangeSetupPost('test')
+        const exchangeURL = `${baseURL}/exchange/setup`
+        try {
+          const response = await axios.post(exchangeURL, testData)
+          const { data: walletQuerys } = response
+          const walletQuery = walletQuerys.find((q) => q.retrievalId === 'someId')
+          const parsedDeepLink = new URL(walletQuery.directDeepLink)
+          const requestURI = parsedDeepLink.searchParams.get('vc_request_url')
+          const challenge = parsedDeepLink.searchParams.get('challenge')
+          const didAuth = await getSignedDIDAuth('did:ex:223234', challenge)
+          const { data: vc } = await axios.post(requestURI, didAuth)
+         
+          if (
+            !vc.proof
+          ) {
+            throw new TransactionException(
+              503,
+              'transaction-service healthz failed'
+            )
+          }
+        } catch (e) {
+          console.log(`exception in healthz: ${JSON.stringify(e)}`)
+          return res.status(503).json({
+            error: `transaction-service healthz check failed with error: ${e}`,
+            healthy: false
+          })
+        }
+        res.send({
+          message: 'transaction-service server status: ok.',
+          healthy: true
+        })
+    })
 
     app.get('/', async function (req, res, next) {
         if (enableStatusService) {
