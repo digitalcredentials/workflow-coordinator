@@ -327,4 +327,28 @@ describe('api', () => {
   })
 
 
+  describe('GET /healthz', function () {
+    it.only('returns 200 if healthy', async function () {
+      const response = await request(app).get('/healthz')
+
+      expect(response.header['content-type']).to.have.string('json')
+      expect(response.status).to.eql(200)
+      expect(response.body).to.eql({
+        message: 'transaction-service server status: ok.',
+        healthy: true
+      })
+    })
+
+    it('returns 503 if not healthy', async function () {
+      // we delete the keyv store to force an error
+      //clearKeyv()
+      const response = await request(app).get('/healthz')
+
+      expect(response.header['content-type']).to.have.string('json')
+      expect(response.status).to.eql(503)
+      expect(response.body).to.have.property('healthy', false)
+      initializeTransactionManager()
+    })
+  })
+
 })
