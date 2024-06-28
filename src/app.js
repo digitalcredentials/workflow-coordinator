@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
-import https from "https"
+import https from 'https'
 import accessLogger from './middleware/accessLogger.js';
 import errorHandler from './middleware/errorHandler.js';
 import errorLogger from './middleware/errorLogger.js';
@@ -25,7 +25,7 @@ async function callService(endpoint, body) {
 
 export async function build(opts = {}) {
 
-    const { enableStatusService, coordinatorServiceEndpoint, statusServiceEndpoint, signingServiceEndpoint, transactionServiceEndpoint, exchangeHost } = getConfig();
+    const { enableStatusService, coordinatorService, statusService, signingService, transactionService, exchangeHost } = getConfig();
     var app = express();
     // Add the middleware to write access logs
     app.use(accessLogger());
@@ -36,7 +36,7 @@ export async function build(opts = {}) {
     app.get('/', async function (req, res, next) {
         if (enableStatusService) {
             try {
-                await axios.get(`http://${statusServiceEndpoint}/`)
+                await axios.get(`http://${statusService}/`)
             } catch (e) {
                 next({
                     message: 'status service is NOT running.',
@@ -46,7 +46,7 @@ export async function build(opts = {}) {
             }
         }
         try {
-            await axios.get(`http://${signingServiceEndpoint}/`)
+            await axios.get(`http://${signingService}/`)
         } catch (e) {
             next({
                 message: 'signing service is NOT running.',
@@ -55,7 +55,7 @@ export async function build(opts = {}) {
             })
         }
         try {
-            await axios.get(`http://${transactionServiceEndpoint}/`)
+            await axios.get(`http://${transactionService}/`)
         } catch (e) {
             next({
                 message: 'transaction service is NOT running.',
@@ -64,17 +64,15 @@ export async function build(opts = {}) {
             })
         }
         const message = enableStatusService ?
-            "exchange-coordinator, status-service, transaction-service, and signing-service all ok."
-            :
-            "exchange-coordinator, transaction-service, and signing-service all ok. status-service is disabled."
+            'workflow-coordinator, status-service, transaction-service, and signing-service all ok.' :
+            'workflow-coordinator, transaction-service, and signing-service all ok. status-service is disabled.'
 
         res.status(200).send({ message })
-
     });
 
     /*
     A test that mocks the 'issuer coordinator app', i.e, the client code
-    that a university would write to invoke the exchange-coordinator. this
+    that a university would write to invoke the workflow-coordinator. this
     should be called from a web browser on a phone (or emulator) 
     because it will redirect to the Learner Credential Wallet running on the
     phone.
@@ -82,7 +80,7 @@ export async function build(opts = {}) {
     app.get('/demo', async (req, res, next) => {
         const retrievalId = 'ohmy'
         // 1. post the test vc to the /setup endpoint
-        const data = {tenantName: "test", data: [{ vc: testVC, retrievalId: 'ohmy' }]}
+        const data = {tenantName: 'test', data: [{ vc: testVC, retrievalId: 'ohmy' }]}
         const walletQuerys = await callService(`${exchangeHost}/exchange/setup`, data)
         // The exchange endpoint stores the data and returns a deeplink (with challenge)
         // to which the student can be redirected, and which will then open the wallet
@@ -109,14 +107,13 @@ export async function build(opts = {}) {
      * which to then initiate the exchange.
      * Note that by setting 'flow=direct' on the object posted
      *  to this endpoint, we can tell the exchanger to skip the 
-     * inititation step and give the wallet the endpoint to which
+     * initiation step and give the wallet the endpoint to which
      * to send the DIDAuth. This is for backward compatability.
      */
-    app.post("/exchange/setup",
+    app.post('/exchange/setup',
         async (req, res, next) => {
             try {
                 //const tenantName = req.params.tenantName //the issuer instance/tenant with which to sign
-console.log("in the exchange setup")
                 const exchangeData = req.body;
                 // TODO: CHECK THE INCOMING DATA FOR CORRECTNESS HERE
                 if (!exchangeData || !Object.keys(exchangeData).length) throw new CoordinatorException(400, 'You must provide data for the exchange. Check the README for details.') 
@@ -124,10 +121,9 @@ console.log("in the exchange setup")
 
                 await verifyAuthHeader(req.headers.authorization, exchangeData.tenantName)
 
-                const walletQuerys = await callService(`http://${transactionServiceEndpoint}/exchange`, exchangeData)
+                const walletQuerys = await callService(`http://${transactionService}/exchange`, exchangeData)
 
                 return res.json(walletQuerys)
-
             } catch (error) {
                 // catch async errors and forward error handling
                 // middleware
@@ -144,11 +140,11 @@ console.log("in the exchange setup")
      * Note that this step can be skipped by setting
      * flow=direct in the object we pass in to the setup endpoint.
      */
-    app.post("/exchange/:exchangeId",
+    app.post('/exchange/:exchangeId',
         async (req, res, next) => {
             try {
                 const exchangeId = req.params.exchangeId
-                const vpr = await callService(`http://${transactionServiceEndpoint}/exchange/${exchangeId}/`)
+                const vpr = await callService(`http://${transactionService}/exchange/${exchangeId}/`)
                 return res.json(vpr)
 
             } catch (error) {
@@ -167,7 +163,7 @@ console.log("in the exchange setup")
      * the status service and signing service before returning
      * to the wallet.
      */
-    app.post("/exchange/:exchangeId/:transactionId",
+    app.post('/exchange/:exchangeId/:transactionId',
         async (req, res, next) => {
             try {
                 const exchangeId = req.params.exchangeId
@@ -177,7 +173,7 @@ console.log("in the exchange setup")
                 // make a deep copy of the didAuth because something seemed to be
                 // going wrong with the streams
                 const didAuth = JSON.parse(JSON.stringify(body))
-                const transactionEndpoint = `http://${transactionServiceEndpoint}/exchange/${exchangeId}/${transactionId}`
+                const transactionEndpoint = `http://${transactionService}/exchange/${exchangeId}/${transactionId}`
                 const response = await axios.post(transactionEndpoint, didAuth);
                 const { data } = response
                 const { tenantName, vc: unSignedVC } = data
@@ -185,12 +181,12 @@ console.log("in the exchange setup")
 
                 // add credential status if enabled
                 const vcReadyToSign = enableStatusService ?
-                    await callService(`http://${statusServiceEndpoint}/credentials/status/allocate`, unSignedVC)
+                    await callService(`http://${statusService}/credentials/status/allocate`, unSignedVC)
                     :
                     unSignedVC
 
                 // sign the credential
-                const signedVC = await callService(`http://${signingServiceEndpoint}/instance/${tenantName.toLowerCase()}/credentials/sign`, vcReadyToSign)
+                const signedVC = await callService(`http://${signingService}/instance/${tenantName.toLowerCase()}/credentials/sign`, vcReadyToSign)
                 return res.json(signedVC)
 
             } catch (error) {
@@ -201,13 +197,13 @@ console.log("in the exchange setup")
         })
 
     // updates the status
-    // the body will look like:  {credentialId: '23kdr', credentialStatus: [{type: 'StatusList2021Credential', status: 'revoked'}]}
-    app.post("/instance/:tenantName/credentials/status",
+    // the body will look like:  {credentialId: '23kdr', credentialStatus: [{type: 'BitstringStatusListCredential', status: 'revoked'}]}
+    app.post('/instance/:tenantName/credentials/status',
         async (req, res, next) => {
-            if (!enableStatusService) return res.status(405).send("The status service has not been enabled.")
+            if (!enableStatusService) return res.status(405).send('The status service has not been enabled.')
             try {
                 await verifyAccess(req.headers.authorization, req.params.tenantName)
-                const updateResult = await callService(`http://${statusServiceEndpoint}/instance/${tenantName}/credentials/sign`, vcWithStatus)
+                const updateResult = await callService(`http://${statusService}/instance/${tenantName}/credentials/sign`, vcWithStatus)
                 return res.json(updateResult)
             } catch (error) {
                 // have to catch and forward async errors to middleware:
@@ -216,7 +212,7 @@ console.log("in the exchange setup")
         })
 
     app.get('/seedgen', async (req, res, next) => {
-        const response = await axios.get(`http://${signingServiceEndpoint}/seedgen`)
+        const response = await axios.get(`http://${signingService}/seedgen`)
         return res.json(response.data)
     });
 

@@ -6,17 +6,17 @@ const randomTenantToken = "UNPROTECTED"
 const defaultTenantToken = "UNPROTECTED"
 
 const defaultExchangeHost = "http://coordinator:4005"
-const defaultCoordinatorServiceEndpoint = "COORDINATOR:4005"
-const defaultStatusServiceEndpoint = "STATUS:4008"
-const defaultSigningServiceEndpoint = "SIGNING:4006"
-const defaultTransactionServiceEndpoint = "TRANSACTIONS:4004"
+const defaultCoordinatorService = "COORDINATOR:4005"
+const defaultStatusService = "STATUS:4008"
+const defaultSigningService = "SIGNING:4006"
+const defaultTransactionService = "TRANSACTIONS:4004"
 
 // when developing using locally run, i.e, without docker-compose
 //const defaultExchangeHost = "http://localhost:4005"
-//const defaultCoordinatorServiceEndpoint = "localhost:4005"
-//const defaultStatusServiceEndpoint = "localhost:4008"
-//const defaultSigningServiceEndpoint = "localhost:4006"
-//const defaultTransactionServiceEndpoint = "localhost:4004"
+//const defaultCoordinatorService = "localhost:4005"
+//const defaultStatusService = "localhost:4008"
+//const defaultSigningService = "localhost:4006"
+//const defaultTransactionService = "localhost:4004"
 
 // we set a default tenant
 // It will be overwritten by whatever value is set for default in .env
@@ -49,10 +49,10 @@ function parseConfig() {
     enableHttpsForDev: env.ENABLE_HTTPS_FOR_DEV?.toLowerCase() === 'true',
     enableAccessLogging: env.ENABLE_ACCESS_LOGGING?.toLowerCase() === 'true',
     enableStatusService: env.ENABLE_STATUS_SERVICE?.toLowerCase() === 'true',
-    coordinatorServiceEndpoint: env.COORDINATOR_SERVICE_ENDPOINT ? env.COORDINATOR_SERVICE_ENDPOINT : defaultCoordinatorServiceEndpoint,
-    statusServiceEndpoint: env.STATUS_SERVICE_ENDPOINT ? env.STATUS_SERVICE_ENDPOINT : defaultStatusServiceEndpoint,
-    signingServiceEndpoint: env.SIGNING_SERVICE_ENDPOINT ? env.SIGNING_SERVICE_ENDPOINT : defaultSigningServiceEndpoint,
-    transactionServiceEndpoint: env.TRANSACTION_SERVICE_ENDPOINT ? env.TRANSACTION_SERVICE_ENDPOINT : defaultTransactionServiceEndpoint,
+    coordinatorService: env.COORDINATOR_SERVICE ? env.COORDINATOR_SERVICE : defaultCoordinatorService,
+    statusService: env.STATUS_SERVICE ? env.STATUS_SERVICE : defaultStatusService,
+    signingService: env.SIGNING_SERVICE ? env.SIGNING_SERVICE : defaultSigningService,
+    transactionService: env.TRANSACTION_SERVICE ? env.TRANSACTION_SERVICE : defaultTransactionService,
     exchangeHost: env.PUBLIC_EXCHANGE_HOST ? env.PUBLIC_EXCHANGE_HOST : defaultExchangeHost,
     port: env.PORT ? parseInt(env.PORT) : defaultPort
   });

@@ -40,7 +40,7 @@ describe('api', () => {
     unprotectedTenantToken = process.env[`TENANT_TOKEN_${unprotectedTenantName}`]
     protectedTenantToken = process.env[`TENANT_TOKEN_${protectedTenantName}`]
     randomToken = process.env[`TENANT_TOKEN_${randomTenantName}`]
-    statusUpdateBody = { "credentialId": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1", "credentialStatus": [{ "type": "StatusList2021Credential", "status": "revoked" }] }
+    statusUpdateBody = { "credentialId": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1", "credentialStatus": [{ "type": "BitstringStatusListCredential", "status": "revoked" }] }
   });
 
   after(() => {
@@ -65,13 +65,13 @@ describe('api', () => {
       
       nock('http://localhost:4006').get("/").reply(200, 'signing-service server status: ok.')
       nock('http://localhost:4008').get("/").reply(200, 'status-service server status: ok.')
-      nock('http://localhost:4004').get("/").reply(200, 'transaction-manager-service server status: ok.')
+      nock('http://localhost:4004').get("/").reply(200, 'transaction-service server status: ok.')
       
       request(app)
         .get("/")
         .expect(200)
         .expect('Content-Type', /json/)
-        .expect(/{"message":"exchange-coordinator, transaction-service, and signing-service all ok. status-service is disabled."}/, done);
+        .expect(/{"message":"workflow-coordinator, transaction-service, and signing-service all ok. status-service is disabled."}/, done);
 
     });
   })
@@ -198,7 +198,7 @@ describe('api', () => {
       /*
          A test that mocks both the wallet part of the interaction, and the 
          'issuer coordinator app' (i.e, the university specific code that uses the
-         exchange coordinator), so that the flow can more easily be
+         workflow coordinator), so that the flow can more easily be
          tested, without needing to redirect into an actual running wallet.
          NOTE: THIS TESTS WITHOUT THE INTERMEIDATE VPR step
          */
@@ -210,7 +210,7 @@ describe('api', () => {
 
       const exchangeSetupData = getDataForExchangeSetupPost(unprotectedTenantName)
       const response = await request(app)
-        .post("/exchange/setup")
+        .post(exchangeSetupPath)
         .send(exchangeSetupData)
       expect(response.header["content-type"]).to.have.string("json");
       expect(response.status).to.eql(200);
@@ -221,7 +221,7 @@ describe('api', () => {
       const url = walletQuery.directDeepLink
 
       // Step 2. Now that we've got the deeplink, we would redirect to it, which
-      // would open the wallet. In this test, we're just assuming that this has already 
+      // would open the wallet. In this test, we're just assuming that this has already
       // happened, and that now we are in the wallet
 
       // Step 3. Mimics what the wallet would do when opened by deeplink
@@ -259,7 +259,7 @@ describe('api', () => {
       /*
       A test that mocks both the wallet part of the interaction, and the 
       'issuer coordinator app' (i.e, the university specific code that uses the
-      exchange coordinator), so that the flow can be
+      workflow coordinator), so that the flow can be
       tested without needing to redirect into an actual running wallet.
       NOTE: this tests with the intermediate VPR step
       */
@@ -269,7 +269,7 @@ describe('api', () => {
       // to which the student can be redirected, and which will then open the wallet
 
       const setupResponse = await request(app)
-        .post("/exchange/setup")
+        .post(exchangeSetupPath)
         .send(getDataForExchangeSetupPost(unprotectedTenantName))
       expect(setupResponse.header["content-type"]).to.have.string("json");
       expect(setupResponse.status).to.eql(200);
@@ -285,10 +285,10 @@ describe('api', () => {
       // Step 2. mimics what the wallet would do when opened by deeplink
       // which is to parse the deeplink and call the exchange initiation endpoint
       const parsedDeepLink = new URL(url)
-      const inititationURI = parsedDeepLink.searchParams.get('vc_request_url');
+      const initiationURI = parsedDeepLink.searchParams.get('vc_request_url');
 
       // strip out the host because we are using supertest
-      const initiationURIPath = (new URL(inititationURI)).pathname
+      const initiationURIPath = (new URL(initiationURI)).pathname
 
       const initiationResponse = await request(app)
         .post(initiationURIPath)
@@ -323,8 +323,5 @@ describe('api', () => {
       //expect(signedVC.credentialSubject.id).to.equal(randomId)
 
     })
-
   })
-
-
 })

@@ -1,5 +1,5 @@
 {
-  "name": "@digitalcredentials/exchange-coordinator",
+  "name": "@digitalcredentials/workflow-coordinator",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -47,8 +47,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/digitalcredentials/exchange-coordinator"
+    "url": "https://github.com/digitalcredentials/workflow-coordinator"
   },
-  "homepage": "https://github.com/digitalcredentials/exchange-coordinator",
-  "bugs": "https://github.com/digitalcredentials/exchange-coordinator/issues"
+  "homepage": "https://github.com/digitalcredentials/workflow-coordinator",
+  "bugs": "https://github.com/digitalcredentials/workflow-coordinator/issues"
 }
