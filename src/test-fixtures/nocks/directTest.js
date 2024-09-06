@@ -95,7 +95,7 @@ const signedVcWithId = {
 
 const signedVp = {
   "@context": [
-    "https://www.w3.org/2018/credentials/v1",
+    "https://www.w3.org/ns/credentials/v2",
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
   "type": [

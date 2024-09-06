@@ -10,20 +10,15 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules npx mocha --timeout 10000 -r dotenv/config dotenv_config_path=src/test-fixtures/.env.testing src/app.test.js "
   },
   "dependencies": {
-    "@digitalbazaar/did-io": "^2.0.0",
-    "@digitalbazaar/did-method-key": "^5.1.0",
-    "@digitalbazaar/ed25519-signature-2020": "^5.2.0",
+    "@digitalbazaar/ed25519-signature-2020": "^5.4.0",
     "@digitalbazaar/ed25519-verification-key-2020": "^4.1.0",
-    "@digitalbazaar/vc": "^6.0.1",
+    "@digitalbazaar/vc": "^7.0.0",
+    "@digitalcredentials/security-document-loader": "^6.0.0",
     "axios": "^1.4.0",
     "cors": "^2.8.5",
-    "credentials-context": "^2.0.0",
     "debug": "~2.6.9",
-    "did-context": "^3.1.1",
     "dotenv": "^16.0.3",
-    "ed25519-signature-2020-context": "^1.1.0",
     "express": "~4.16.1",
-    "jsonld-document-loader": "^2.0.0",
     "morgan": "~1.9.1",
     "winston": "^3.9.0"
   },
@@ -38,7 +33,7 @@
     "dcc"
   ],
   "engines": {
-    "node": ">=16.0"
+    "node": ">=20.0"
   },
   "author": {
     "name": "Digital Credentials Consortium",
