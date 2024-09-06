@@ -10,7 +10,6 @@ import verifyAuthHeader from './verifyAuthHeader.js'
 import { getConfig } from './config.js'
 import testVC from './testVC.js';
 import CoordinatorException from './CoordinatorException.js';
-import { getSignedDIDAuth, verifyDIDAuth } from './didAuth.js';
 
 async function callService(endpoint, body) {
 
