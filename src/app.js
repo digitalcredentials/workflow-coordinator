@@ -214,6 +214,23 @@ export async function build(opts = {}) {
             }
         })
 
+        app.get('/status/:statusCredentialId', async function (req, res, next) {
+            if (!enableStatusService) next({ code: 405, message: 'The status service has not been enabled.' })
+            const statusCredentialId = req.params.statusCredentialId
+            try {
+              const { data: statusCredential } = await axios.get(`http://${statusService}/${statusCredentialId}`)
+              return res.status(200).json(statusCredential)
+            } catch (error) {
+              if (error.response.status === 404) {
+                next({ code: 404, message: 'No status credential found for that id.' })
+              } else {
+                next(error)
+              }
+            }
+            return res.status(500).send({ message: 'Server error.' })
+          })
+          
+
     app.get('/seedgen', async (req, res, next) => {
         const response = await axios.get(`http://${signingService}/seedgen`)
         return res.json(response.data)
