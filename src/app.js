@@ -219,6 +219,17 @@ export async function build(opts = {}) {
         return res.json(response.data)
     });
 
+    app.get('/did-key-generator', async (req, res, next) => {
+        const response = await axios.get(`http://${signingService}/did-key-generator`)
+        return res.json(response.data)
+      })
+    
+      app.post('/did-web-generator', async (req, res, next) => {
+        const body = req.body
+        const response = await axios.post(`http://${signingService}/did-web-generator`, body)
+        return res.json(response.data)
+      })
+
     // Attach the error handling middleware calls, in order they should run
     app.use(errorLogger)
     app.use(errorHandler)
