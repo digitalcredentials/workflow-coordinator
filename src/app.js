@@ -24,7 +24,7 @@ async function callService(endpoint, body) {
 
 export async function build(opts = {}) {
 
-    const { enableStatusService, coordinatorService, statusService, signingService, transactionService, exchangeHost } = getConfig();
+    const { enableStatusService, statusService, signingService, transactionService, exchangeHost } = getConfig();
     var app = express();
     // Add the middleware to write access logs
     app.use(accessLogger());
@@ -112,7 +112,6 @@ export async function build(opts = {}) {
     app.post('/exchange/setup',
         async (req, res, next) => {
             try {
-                //const tenantName = req.params.tenantName //the issuer instance/tenant with which to sign
                 const exchangeData = req.body;
                 // TODO: CHECK THE INCOMING DATA FOR CORRECTNESS HERE
                 if (!exchangeData || !Object.keys(exchangeData).length) throw new CoordinatorException(400, 'You must provide data for the exchange. Check the README for details.') 
@@ -183,7 +182,6 @@ export async function build(opts = {}) {
                     await callService(`http://${statusService}/credentials/status/allocate`, unSignedVC)
                     :
                     unSignedVC
-
                 // sign the credential
                 const signedVC = await callService(`http://${signingService}/instance/${tenantName.toLowerCase()}/credentials/sign`, vcReadyToSign)
                 return res.json(signedVC)
@@ -201,12 +199,18 @@ export async function build(opts = {}) {
         async (req, res, next) => {
             if (!enableStatusService) return res.status(405).send('The status service has not been enabled.')
             try {
-                await verifyAccess(req.headers.authorization, req.params.tenantName)
-                const updateResult = await callService(`http://${statusService}/instance/${tenantName}/credentials/sign`, vcWithStatus)
-                return res.json(updateResult)
+                await verifyAuthHeader(req.headers.authorization, req.params.tenantName)
+                const statusUpdate = req.body
+                  // NOTE: we throw the error here which will then be caught by middleware errorhandler
+                  if (!statusUpdate || !Object.keys(statusUpdate).length) throw new CoordinatorException(400, 'A status update must be provided in the body.')
+                    const updateResult = await callService(`http://${statusService}/credentials/status`, statusUpdate)
+                    return res.json(updateResult)
             } catch (error) {
-                // have to catch and forward async errors to middleware:
-                next(error)
+                if (error.response?.status === 404) {
+                    next({ code: 404, message: 'Not found.' })
+                  }
+                  // otherwise, forward the error to middleware:
+                  next(error)
             }
         })
 
