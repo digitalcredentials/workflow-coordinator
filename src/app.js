@@ -197,7 +197,7 @@ export async function build(opts = {}) {
     // the body will look like:  {credentialId: '23kdr', credentialStatus: [{type: 'BitstringStatusListCredential', status: 'revoked'}]}
     app.post('/instance/:tenantName/credentials/status',
         async (req, res, next) => {
-            if (!enableStatusService) return res.status(405).send('The status service has not been enabled.')
+            if (!getConfig().enableStatusService) return res.status(405).send('The status service has not been enabled.')
             try {
                 await verifyAuthHeader(req.headers.authorization, req.params.tenantName)
                 const statusUpdate = req.body
@@ -215,7 +215,7 @@ export async function build(opts = {}) {
         })
 
         app.get('/status/:statusCredentialId', async function (req, res, next) {
-            if (!enableStatusService) next({ code: 405, message: 'The status service has not been enabled.' })
+            if (!getConfig().enableStatusService) next({ code: 405, message: 'The status service has not been enabled.' })
             const statusCredentialId = req.params.statusCredentialId
             try {
               const { data: statusCredential } = await axios.get(`http://${statusService}/${statusCredentialId}`)
@@ -229,7 +229,7 @@ export async function build(opts = {}) {
             }
             return res.status(500).send({ message: 'Server error.' })
           })
-          
+
 
     app.get('/seedgen', async (req, res, next) => {
         const response = await axios.get(`http://${signingService}/seedgen`)
