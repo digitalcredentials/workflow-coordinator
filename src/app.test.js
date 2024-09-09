@@ -8,10 +8,13 @@ import unprotectedWalletQueryNock from './test-fixtures/nocks/unprotectedWalletQ
 import protectedWalletQueryNock from './test-fixtures/nocks/protectedWalletQuery.js';
 import unProtectedRandomWalletQuery from './test-fixtures/nocks/unProtectedRandomWalletQuery.js';
 import vprTestNocks from './test-fixtures/nocks/vprTest.js'
+import unknownStatusListNock from './test-fixtures/nocks/unknown_status_list_nock.js'
+import statusListNock from './test-fixtures/nocks/status_list_nock.js'
 
 import { getSignedDIDAuth } from './didAuth.js';
 
 import { build } from './app.js';
+import { resetConfig } from './config.js'
 
 const exchangeSetupPath = '/exchange/setup'
 const unprotectedTenantName = "UN_PROTECTED_TEST"
@@ -34,6 +37,9 @@ const checkForUnexpectedCalls = () => {
   nock.emitter.on('no match', noMatchHandler);
 }
 
+//nock.recorder.rec()
+
+
 describe('api', () => {
 
   before(async () => {
@@ -43,6 +49,7 @@ describe('api', () => {
     statusUpdateBody = { "credentialId": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1", "credentialStatus": [{ "type": "BitstringStatusListCredential", "status": "revoked" }] }
   });
 
+  
   after(() => {
 
   })
@@ -322,6 +329,129 @@ describe('api', () => {
       // has used the random DID supplied in the DIDAuth
       //expect(signedVC.credentialSubject.id).to.equal(randomId)
 
+    })
+  })
+
+
+  describe('POST /instance/:instanceId/credentials/status', () => {
+    before(async () => {
+      resetConfig()
+      process.env.ENABLE_STATUS_SERVICE = true
+      
+    });
+  
+    after(async () => {
+      resetConfig()
+      process.env.ENABLE_STATUS_SERVICE = false
+    });
+
+    it('returns 400 if no body', done => {
+      request(app)
+        .post(`/instance/${unprotectedTenantName}/credentials/status`)
+        .expect('Content-Type', /json/)
+        .expect(400, done)
+    })
+
+    it('returns 401 if tenant token is missing from auth header', done => {
+      request(app)
+        .post(`/instance/${protectedTenantName}/credentials/status`)
+        .send(statusUpdateBody)
+        .expect('Content-Type', /json/)
+        .expect(401, done)
+    })
+
+
+
+    it('returns 403 if token is not valid', done => {
+      request(app)
+        .post(`/instance/${protectedTenantName}/credentials/status`)
+        .set('Authorization', 'Bearer ThisIsABadToken')
+        .send(statusUpdateBody)
+        .expect('Content-Type', /json/)
+        .expect(403, done)
+    })
+
+    it('returns 401 if token is not marked as Bearer', done => {
+      request(app)
+        .post(`/instance/${protectedTenantName}/credentials/status`)
+        .set('Authorization', `${protectedTenantToken}`)
+        .send(statusUpdateBody)
+        .expect('Content-Type', /json/)
+        .expect(401, done)
+    })
+
+    it('returns 404 if no seed for tenant name', done => {
+      request(app)
+        .post('/instance/wrongTenantName/credentials/status')
+        .set('Authorization', `${protectedTenantToken}`)
+        .send(statusUpdateBody)
+        .expect(404, done)
+        .expect('Content-Type', /json/)
+    })
+
+  /*  it('returns 403 when trying to use token for a different tenant', done => {
+      request(app)
+        .post(`/instance/${protectedTenantName}/credentials/status`)
+        .set('Authorization', `Bearer ${testTenantToken2}`)
+        .send(statusUpdateBody)
+        .expect('Content-Type', /json/)
+        .expect(403, done)
+    }) */
+  //still AVE TO TRY these:
+/* 
+    it('update unprotected status when token not set for tenant in config', done => {
+      unprotectedStatusUpdateNock()
+      request(app)
+        .post(`/instance/${unprotectedTenantName}/credentials/status`)
+        .send(statusUpdateBody)
+        .expect('Content-Type', /json/)
+        .expect(200, done)
+    })
+
+    it('returns 404 for unknown cred id', async () => {
+      unknownStatusIdNock()
+      const statusUpdateBodyWithUnknownId = JSON.parse(JSON.stringify(statusUpdateBody))
+      statusUpdateBodyWithUnknownId.credentialId = 'kj09ij'
+      const response = await request(app)
+        .post('/instance/protected_test/credentials/status')
+        .set('Authorization', `Bearer ${testTenantToken}`)
+        .send(statusUpdateBodyWithUnknownId)
+
+      expect(response.header['content-type']).to.have.string('json')
+      expect(response.status).to.equal(404)
+    })*/
+  }) 
+    
+  describe('GET /status/:statusCredentialId', () => {
+    before(async () => {
+      resetConfig()
+      process.env.ENABLE_STATUS_SERVICE = true
+      
+    });
+  
+    after(async () => {
+      resetConfig()
+      process.env.ENABLE_STATUS_SERVICE = false
+    });
+
+    it('returns 404 for unknown status credential id', async () => {
+      unknownStatusListNock()
+      const response = await request(app)
+        .get('/status/9898u')
+      expect(response.header['content-type']).to.have.string('json')
+      expect(response.status).to.equal(404)
+    })
+
+
+    it('returns credential status list from status service', async () => {
+      statusListNock()
+      const response = await request(app)
+        .get('/status/slAwJe6GGR6mBojlGW5U')
+      expect(response.header['content-type']).to.have.string('json')
+      expect(response.status).to.equal(200)
+      const returnedList = JSON.parse(JSON.stringify(response.body))
+      // this proof value comes from the nock:
+      expect(returnedList.proof.proofValue).to.equal('z4y3GawinQg1aCqbYqZM8dmDpbmtFa3kE6tFefdXvLi5iby25dvmVwLNZrfcFPyhpshrhCWB76pdSZchVve3K1Znr')
     })
   })
 })
