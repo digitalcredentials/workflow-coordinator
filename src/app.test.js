@@ -23,9 +23,12 @@ import { resetConfig } from './config.js'
 const exchangeSetupPath = '/exchange/setup'
 const unprotectedTenantName = "UN_PROTECTED_TEST"
 const protectedTenantName = "PROTECTED_TEST"
+const protectedTenantName2 = "PROTECTED_TEST_2"
 const randomTenantName = "RANDOM_TEST"
+
 let unprotectedTenantToken
 let protectedTenantToken
+let testTenantToken2
 let randomToken
 
 let statusUpdateBody
@@ -49,6 +52,7 @@ describe('api', () => {
   before(async () => {
     unprotectedTenantToken = process.env[`TENANT_TOKEN_${unprotectedTenantName}`]
     protectedTenantToken = process.env[`TENANT_TOKEN_${protectedTenantName}`]
+    testTenantToken2 = process.env[`TENANT_TOKEN_${protectedTenantName2}`]
     randomToken = process.env[`TENANT_TOKEN_${randomTenantName}`]
     statusUpdateBody = { "credentialId": "urn:uuid:951b475e-b795-43bc-ba8f-a2d01efd2eb1", "credentialStatus": [{ "type": "BitstringStatusListCredential", "status": "revoked" }] }
   });
@@ -393,14 +397,14 @@ describe('api', () => {
         .expect('Content-Type', /json/)
     })
 
-  /*  it('returns 403 when trying to use token for a different tenant', done => {
+    it('returns 403 when trying to use token for a different tenant', done => {
       request(app)
         .post(`/instance/${protectedTenantName}/credentials/status`)
         .set('Authorization', `Bearer ${testTenantToken2}`)
         .send(statusUpdateBody)
         .expect('Content-Type', /json/)
         .expect(403, done)
-    }) */
+    }) 
 
 
     it('update unprotected status when token not set for tenant in config', done => {
