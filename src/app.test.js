@@ -10,10 +10,10 @@ import unProtectedRandomWalletQuery from './test-fixtures/nocks/unProtectedRando
 import vprTestNocks from './test-fixtures/nocks/vprTest.js'
 import unknownStatusListNock from './test-fixtures/nocks/unknown_status_list_nock.js'
 import statusListNock from './test-fixtures/nocks/status_list_nock.js'
-
+import didWebGeneratorNock from './test-fixtures/nocks/did-web-generator.js'
 import unprotectedStatusUpdateNock from './test-fixtures/nocks/unprotected_status_update.js'
 import unknownStatusIdNock from './test-fixtures/nocks/unknown_status_id_nock.js'
-import protectedStatusUpdateNock from './test-fixtures/nocks/protected_status_update.js'
+import didKeyGeneratorNock from './test-fixtures/nocks/did-key-generator.js'
 
 import { getSignedDIDAuth } from './didAuth.js';
 
@@ -462,4 +462,42 @@ describe('api', () => {
       expect(returnedList.proof.proofValue).to.equal('z4y3GawinQg1aCqbYqZM8dmDpbmtFa3kE6tFefdXvLi5iby25dvmVwLNZrfcFPyhpshrhCWB76pdSZchVve3K1Znr')
     })
   })
+
+  describe('/did-web-generator', () => {
+    it('returns a new did:web', async () => {
+      didWebGeneratorNock()
+      await request(app)
+        .post(`/did-web-generator`)
+        .send({
+          url: 'https://raw.githubusercontent.com/jchartrand/didWebTest/main'
+        })
+        .expect('Content-Type', /json/)
+        .expect((res) => {
+          expect(res.body.seed).to.exist
+          expect(res.body.didDocument.id).to.eql(
+            'did:web:raw.githubusercontent.com:jchartrand:didWebTest:main'
+          )
+          expect(res.body.did).to.eql(
+            'did:web:raw.githubusercontent.com:jchartrand:didWebTest:main'
+          )
+        })
+        .expect(200)
+    })
+  })
+
+  describe('/did-key-generator', () => {
+    it('returns a new did:key', async () => {
+      didKeyGeneratorNock()
+      await request(app)
+        .get(`/did-key-generator`)
+        .expect('Content-Type', /json/)
+        .expect((res) => {
+          expect(res.body.seed).to.exist
+          expect(res.body.didDocument.id).to.contain('did:key')
+          expect(res.body.did).to.contain('did:key')
+        })
+        .expect(200)
+    })
+  })
+
 })
