@@ -11,6 +11,10 @@ import vprTestNocks from './test-fixtures/nocks/vprTest.js'
 import unknownStatusListNock from './test-fixtures/nocks/unknown_status_list_nock.js'
 import statusListNock from './test-fixtures/nocks/status_list_nock.js'
 
+import unprotectedStatusUpdateNock from './test-fixtures/nocks/unprotected_status_update.js'
+import unknownStatusIdNock from './test-fixtures/nocks/unknown_status_id_nock.js'
+import protectedStatusUpdateNock from './test-fixtures/nocks/protected_status_update.js'
+
 import { getSignedDIDAuth } from './didAuth.js';
 
 import { build } from './app.js';
@@ -397,8 +401,8 @@ describe('api', () => {
         .expect('Content-Type', /json/)
         .expect(403, done)
     }) */
-  //still AVE TO TRY these:
-/* 
+
+
     it('update unprotected status when token not set for tenant in config', done => {
       unprotectedStatusUpdateNock()
       request(app)
@@ -407,19 +411,19 @@ describe('api', () => {
         .expect('Content-Type', /json/)
         .expect(200, done)
     })
-
+ 
     it('returns 404 for unknown cred id', async () => {
       unknownStatusIdNock()
       const statusUpdateBodyWithUnknownId = JSON.parse(JSON.stringify(statusUpdateBody))
       statusUpdateBodyWithUnknownId.credentialId = 'kj09ij'
       const response = await request(app)
-        .post('/instance/protected_test/credentials/status')
-        .set('Authorization', `Bearer ${testTenantToken}`)
+        .post(`/instance/${protectedTenantName}/credentials/status`)
+        .set('Authorization', `Bearer ${protectedTenantToken}`)
         .send(statusUpdateBodyWithUnknownId)
 
       expect(response.header['content-type']).to.have.string('json')
       expect(response.status).to.equal(404)
-    })*/
+    })
   }) 
     
   describe('GET /status/:statusCredentialId', () => {
