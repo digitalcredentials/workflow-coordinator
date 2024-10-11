@@ -221,13 +221,13 @@ Create a file called `docker-compose.yml` and add the following:
 version: '3.5'
 services:
   coordinator:
-    image: digitalcredentials/workflow-coordinator:0.1.0
+    image: digitalcredentials/workflow-coordinator:1.0.0
     ports:
       - "4005:4005"
   signing:
-    image: digitalcredentials/signing-service:0.1.0
+    image: digitalcredentials/signing-service:1.0.0
   transaction:
-    image: digitalcredentials/transaction-service:0.1.0
+    image: digitalcredentials/transaction-service:0.2.0
   status:
     image: digitalcredentials/status-service-db:0.1.0
   # NOTE: If you would prefer to use the Git based status manager instead
@@ -237,7 +237,7 @@ services:
   #   image: digitalcredentials/status-service-git:0.1.0
 ```
 
-Note that as of this writing (October 2nd 2023), the versions of each image are at 0.1.0. These will change over time. Read more in [Versioning](#versioning).
+Note that as of this writing (October 11 2024), the versions of each image are as listed above. These will change over time. Read more in [Versioning](#versioning).
 
 ### Run Service
 
