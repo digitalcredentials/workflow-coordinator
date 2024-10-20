@@ -227,7 +227,6 @@ export async function build(opts = {}) {
                 next(error)
               }
             }
-            return res.status(500).send({ message: 'Server error.' })
           })
 
 
