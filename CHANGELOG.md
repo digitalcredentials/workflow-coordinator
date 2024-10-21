@@ -1,5 +1,10 @@
 # workflow-coordinator Changelog
 
+## 1.0.1 - 2024-10-21
+
+### Fixed
+- removed duplicate error response from /status/:statusCredentialId that was crashing service
+
 ## 1.0.0 - 2024-10-11
 
 ### Changed
